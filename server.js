@@ -5,7 +5,6 @@ const { Server } = require("socket.io");
 const app = express();
 const server = http.createServer(app);
 
-// ── CORS ─────────────────────────────────────────────
 const ALLOWED_ORIGIN = "https://aarondenuto.github.io";
 
 const io = new Server(server, {
@@ -17,107 +16,124 @@ const io = new Server(server, {
 
 app.get("/", (req, res) => res.send("Have You Ever — server running"));
 
-// ── QUESTIONS ────────────────────────────────────────
+// ── QUESTIONS (Rice Purity Test, canonical order) ───────────────────────────
 const questions = [
-"Have you ever held hands romantically?",
-"Have you ever been on a date?",
-"Have you ever been in a relationship?",
-"Have you ever danced without leaving room for Jesus?",
-"Have you ever kissed a non-family member?",
-"Have you ever kissed a non-family member on the lips?",
-"Have you ever french kissed?",
-"Have you ever french kissed in public?",
-"Have you ever kissed on the neck?",
-"Have you ever kissed horizontally?",
-"Have you ever given or received a hickey?",
-"Have you ever kissed or been kissed on the breast?",
-"Have you ever kissed someone below the belt?",
-"Have you ever kissed for more than two hours consecutively?",
-"Have you ever played a game involving stripping?",
-"Have you ever been seen in a sensual context?",
-"Have you ever masturbated?",
-"Have you ever masturbated to a picture or video?",
-"Have you ever masturbated while someone else was in the room?",
-"Have you ever been caught masturbating?",
-"Have you ever masturbated with an object?",
-"Have you ever seen pornographic material?",
-"Have you ever been massaged sensually?",
-"Have you ever simulated intercourse while clothed?",
-"Have you ever undressed someone?",
-"Have you ever showered with someone?",
-"Have you ever fondled or been fondled?",
-"Have you ever had an orgasm due to someone else?",
-"Have you ever sent a sexually explicit text?",
-"Have you ever sent or received explicit photos?",
-"Have you ever done explicit video chat?",
-"Have you ever cheated on a partner?",
-"Have you ever purchased contraceptives?",
-"Have you ever given oral sex?",
-"Have you ever received oral sex?",
-"Have you ever used a sex toy with a partner?",
-"Have you ever spent the night with someone?",
-"Have you ever been walked in on?",
-"Have you ever drank alcohol?",
-"Have you ever played a drinking game?",
-"Have you ever been drunk?",
-"Have you ever faked sobriety?",
-"Have you ever had memory loss due to alcohol?",
-"Have you ever used tobacco?",
-"Have you ever used marijuana?",
-"Have you ever used a stronger drug?",
-"Have you ever been sent to the principal?",
-"Have you ever been suspended?",
-"Have you ever urinated in public?",
-"Have you ever gone skinny dipping?",
-"Have you ever gone streaking?",
-"Have you ever seen a stripper?",
-"Have you ever had police called on you?",
-"Have you ever run from police?",
-"Have you ever been questioned by police?",
-"Have you ever been handcuffed?",
-"Have you ever been arrested?",
-"Have you ever been convicted of a crime?",
-"Have you ever committed vandalism?",
-"Have you ever had sexual intercourse?",
-"Have you ever had sex 3+ times in one night?",
-"Have you ever had sex 10+ times?",
-"Have you ever had sex in multiple positions?",
-"Have you ever had sex with a stranger?",
-"Have you ever had sex in a car?",
-"Have you ever had sex outdoors?",
-"Have you ever had sex in public?",
-"Have you ever had sex in a pool or hot tub?",
-"Have you ever had sex in someone else's bed?",
-"Have you ever had sex with parents home?",
-"Have you ever had sex with someone else in the room?",
-"Have you ever joined the mile high club?",
-"Have you ever had a booty call?",
-"Have you ever traveled for sex?",
-"Have you ever had sex with an age gap of 3+ years?",
-"Have you ever had sex with a virgin?",
-"Have you ever had sex without protection?",
-"Have you ever taken an STI test?",
-"Have you ever had an STI?",
-"Have you ever had a threesome?",
-"Have you ever attended an orgy?",
-"Have you ever had multiple partners in 24 hours?",
-"Have you ever had 5+ partners?",
-"Have you ever been filmed during sex?",
-"Have you ever had period sex?",
-"Have you ever had anal sex?",
-"Have you ever had a pregnancy scare?",
-"Have you ever impregnated or been impregnated?",
-"Have you ever paid or been paid for sex?",
-"Have you ever committed voyeurism?",
-"Have you ever committed incest?",
-"Have you ever engaged in bestiality?"
+  { n: 1,   q: "Held hands romantically?" },
+  { n: 2,   q: "Been on a date?" },
+  { n: 3,   q: "Been in a relationship?" },
+  { n: 4,   q: "Danced without leaving room for Jesus?" },
+  { n: 5,   q: "Kissed a non-family member?" },
+  { n: 6,   q: "Kissed a non-family member on the lips?" },
+  { n: 7,   q: "French kissed?" },
+  { n: 8,   q: "French kissed in public?" },
+  { n: 9,   q: "Kissed on the neck?" },
+  { n: 10,  q: "Kissed horizontally?" },
+  { n: 11,  q: "Given or received a hickey?" },
+  { n: 12,  q: "Kissed or been kissed on the breast?" },
+  { n: 13,  q: "Kissed someone below the belt?" },
+  { n: 14,  q: "Kissed for more than two hours consecutively?" },
+  { n: 15,  q: "Played a game involving stripping?" },
+  { n: 16,  q: "Seen or been seen by another person in a sensual context?" },
+  { n: 17,  q: "Masturbated?" },
+  { n: 18,  q: "Masturbated to a picture or video?" },
+  { n: 19,  q: "Masturbated while someone else was in the room?" },
+  { n: 20,  q: "Been caught masturbating?" },
+  { n: 21,  q: "Masturbated with an inanimate object?" },
+  { n: 22,  q: "Seen or read pornographic material?" },
+  { n: 23,  q: "Massaged or been massaged sensually?" },
+  { n: 24,  q: "Gone through the motions of intercourse while fully dressed?" },
+  { n: 25,  q: "Undressed or been undressed by a MPS?" },
+  { n: 26,  q: "Showered with a MPS?" },
+  { n: 27,  q: "Fondled or had your butt cheeks fondled?" },
+  { n: 28,  q: "Fondled or had your breasts fondled?" },
+  { n: 29,  q: "Fondled or had your genitals fondled?" },
+  { n: 30,  q: "Had or given \"blue balls\"?" },
+  { n: 31,  q: "Had an orgasm due to someone else's manipulation?" },
+  { n: 32,  q: "Sent a sexually explicit text or instant message?" },
+  { n: 33,  q: "Sent or received sexually explicit photographs?" },
+  { n: 34,  q: "Engaged in sexually explicit activity over video chat?" },
+  { n: 35,  q: "Cheated on a significant other during a relationship?" },
+  { n: 36,  q: "Purchased contraceptives?" },
+  { n: 37,  q: "Gave oral sex?" },
+  { n: 38,  q: "Received oral sex?" },
+  { n: 39,  q: "Ingested someone else's genital secretion?" },
+  { n: 40,  q: "Used a sex toy with a partner?" },
+  { n: 41,  q: "Spent the night with a MPS?" },
+  { n: 42,  q: "Been walked in on while engaging in a sexual act?" },
+  { n: 43,  q: "Kicked a roommate out to commit a sexual act?" },
+  { n: 44,  q: "Ingested alcohol in a non-religious context?" },
+  { n: 45,  q: "Played a drinking game?" },
+  { n: 46,  q: "Been drunk?" },
+  { n: 47,  q: "Faked sobriety to parents or teachers?" },
+  { n: 48,  q: "Had severe memory loss due to alcohol?" },
+  { n: 49,  q: "Used tobacco?" },
+  { n: 50,  q: "Used marijuana?" },
+  { n: 51,  q: "Used a drug stronger than marijuana?" },
+  { n: 52,  q: "Used methamphetamine, crack cocaine, PCP, horse tranquilizers or heroin?" },
+  { n: 53,  q: "Been sent to the office of a principal, dean or judicial affairs representative for a disciplinary infraction?" },
+  { n: 54,  q: "Been put on disciplinary probation or suspended?" },
+  { n: 55,  q: "Urinated in public?" },
+  { n: 56,  q: "Gone skinny-dipping?" },
+  { n: 57,  q: "Gone streaking?" },
+  { n: 58,  q: "Seen a stripper?" },
+  { n: 59,  q: "Had the police called on you?" },
+  { n: 60,  q: "Run from the police?" },
+  { n: 61,  q: "Had the police question you?" },
+  { n: 62,  q: "Had the police handcuff you?" },
+  { n: 63,  q: "Been arrested?" },
+  { n: 64,  q: "Been convicted of a crime?" },
+  { n: 65,  q: "Been convicted of a felony?" },
+  { n: 66,  q: "Committed an act of vandalism?" },
+  { n: 67,  q: "Had sexual intercourse?" },
+  { n: 68,  q: "Had sexual intercourse three or more times in one night?" },
+  { n: 69,  q: "?" },
+  { n: 70,  q: "Had sexual intercourse 10 or more times?" },
+  { n: 71,  q: "Had sexual intercourse in four or more positions?" },
+  { n: 72,  q: "Had sexual intercourse with a stranger or person you met within 24 hours?" },
+  { n: 73,  q: "Had sexual intercourse in a motor vehicle?" },
+  { n: 74,  q: "Had sexual intercourse outdoors?" },
+  { n: 75,  q: "Had sexual intercourse in public?" },
+  { n: 76,  q: "Had sexual intercourse in a swimming pool or hot tub?" },
+  { n: 77,  q: "Had sexual intercourse in a bed not belonging to you or your partner?" },
+  { n: 78,  q: "Had sexual intercourse while you or your partner's parents were in the same home?" },
+  { n: 79,  q: "Had sexual intercourse with non-participating third party in the same room?" },
+  { n: 80,  q: "Joined the mile high club?" },
+  { n: 81,  q: "Participated in a \'booty call\' with a partner whom you were not in a relationship with?" },
+  { n: 82,  q: "Traveled 100 or more miles for the primary purpose of sexual intercourse?" },
+  { n: 83,  q: "Had sexual intercourse with a partner with a 3 or more year age difference?" },
+  { n: 84,  q: "Had sexual intercourse with a virgin?" },
+  { n: 85,  q: "Had sexual intercourse without a condom?" },
+  { n: 86,  q: "Had a STI test due to reasonable suspicion?" },
+  { n: 87,  q: "Had a STI?" },
+  { n: 88,  q: "Had a threesome?" },
+  { n: 89,  q: "Attended an orgy?" },
+  { n: 90,  q: "Had two or more distinct acts of sexual intercourse with two or more people within 24 hours?" },
+  { n: 91,  q: "Had sexual intercourse with five or more partners?" },
+  { n: 92,  q: "Been photographed or filmed during sexual intercourse by yourself or others?" },
+  { n: 93,  q: "Had period sex?" },
+  { n: 94,  q: "Had anal sex?" },
+  { n: 95,  q: "Had a pregnancy scare?" },
+  { n: 96,  q: "Impregnated someone or been impregnated?" },
+  { n: 97,  q: "Paid or been paid for a sexual act?" },
+  { n: 98,  q: "Committed an act of voyeurism?" },
+  { n: 99,  q: "Committed an act of incest?" },
+  { n: 100, q: "Engaged in bestiality?" }
 ];
 
-// ── ROOM STATE ───────────────────────────────────────
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ── ROOM STATE ────────────────────────────────────────────────────────────────
 const rooms = {};
 
 function generateRoomId() {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   let id = "";
   for (let i = 0; i < 4; i++) id += chars[Math.floor(Math.random() * chars.length)];
   return rooms[id] ? generateRoomId() : id;
@@ -131,167 +147,158 @@ function allVoted(room) {
   return room.players.length > 0 && room.players.every(p => p.vote !== null);
 }
 
-// ── SOCKET EVENTS ────────────────────────────────────
-io.on("connection", (socket) => {
+function resolveRound(roomId) {
+  const room = rooms[roomId];
+  const yes = room.players.filter(p => p.vote === "yes").length;
+  const total = room.players.length;
+  const isLast = room.questionIndex >= room.queue.length - 1;
+  const q = room.queue[room.questionIndex];
+  room.results.push({ question: `${q.n}: ${q.q}`, yes, total });
+  room.state = "result";
+  io.to(roomId).emit("round_result", { yes, total, isLast });
+}
 
-  // CREATE ROOM
+function advanceToQuestion(roomId) {
+  const room = rooms[roomId];
+  room.state = "question";
+  room.players.forEach(p => p.vote = null);
+  const q = room.queue[room.questionIndex];
+  io.to(roomId).emit("new_question", {
+    question: `${q.n}: ${q.q}`,
+    index: room.questionIndex,
+    total: room.queue.length
+  });
+}
+
+// ── SOCKET EVENTS ─────────────────────────────────────────────────────────────
+io.on("connection", (socket) => {
+  console.log("connect", socket.id);
+
   socket.on("create_room", ({ name }) => {
     if (!name) return;
-
     const roomId = generateRoomId();
-
     rooms[roomId] = {
       hostId: socket.id,
-      players: [{ id: socket.id, name: name.slice(0,20), isHost: true, vote: null }],
+      players: [{ id: socket.id, name: name.slice(0, 20), isHost: true, vote: null }],
       questionIndex: 0,
+      queue: [],          // ordered list of question objects for this game
+      randomOrder: false,
       state: "lobby",
       results: []
     };
-
     socket.join(roomId);
     socket.emit("room_created", { roomId });
     io.to(roomId).emit("room_update", { players: getRoomPlayers(rooms[roomId]) });
   });
 
-  // JOIN ROOM (now allowed mid-game)
   socket.on("join_room", ({ name, roomId }) => {
     const room = rooms[roomId];
     if (!room) return socket.emit("error", { message: "Room not found" });
+    if (room.state === "over") return socket.emit("error", { message: "Game is already over" });
     if (room.players.length >= 20) return socket.emit("error", { message: "Room is full" });
 
-    room.players.push({ id: socket.id, name: name.slice(0,20), isHost: false, vote: null });
-
+    room.players.push({ id: socket.id, name: name.slice(0, 20), isHost: false, vote: null });
     socket.join(roomId);
-    socket.emit("room_joined", { roomId });
-
     io.to(roomId).emit("room_update", { players: getRoomPlayers(room) });
 
-    // sync current question if mid-game
-    if (room.state === "question") {
-      socket.emit("new_question", {
-        question: questions[room.questionIndex],
-        index: room.questionIndex,
-        total: questions.length
+    if (room.state === "lobby") {
+      socket.emit("room_joined", { roomId });
+    } else {
+      // Send current game state so they can jump straight in
+      const lastResult = room.state === "result" && room.results.length > 0
+        ? { yes: room.results[room.results.length-1].yes, total: room.results[room.results.length-1].total, isLast: room.questionIndex >= questions.length - 1 }
+        : null;
+      const jq = room.queue[room.questionIndex];
+      socket.emit("joined_midgame", {
+        roomId,
+        questionIndex: room.questionIndex,
+        question: `${jq.n}: ${jq.q}`,
+        total: room.queue.length,
+        state: room.state,
+        lastResult
       });
+      // New joiner has null vote — if everyone else already voted, resolve
+      if (room.state === "question" && allVoted(room)) resolveRound(roomId);
     }
   });
 
-  // START GAME
-  socket.on("start_game", ({ roomId }) => {
+  socket.on("leave_room", ({ roomId }) => {
+    handleLeave(socket, roomId);
+  });
+
+  socket.on("start_game", ({ roomId, randomOrder }) => {
     const room = rooms[roomId];
     if (!room || room.hostId !== socket.id) return;
-
+    room.randomOrder = !!randomOrder;
+    room.queue = randomOrder ? shuffle(questions) : [...questions];
     room.state = "question";
     room.questionIndex = 0;
     room.players.forEach(p => p.vote = null);
-
     io.to(roomId).emit("game_started");
-    io.to(roomId).emit("new_question", {
-      question: questions[0],
-      index: 0,
-      total: questions.length
-    });
+    advanceToQuestion(roomId);
   });
 
-  // VOTE
   socket.on("submit_vote", ({ roomId, vote }) => {
     const room = rooms[roomId];
     if (!room || room.state !== "question") return;
-
     const player = room.players.find(p => p.id === socket.id);
     if (!player || player.vote !== null) return;
-
+    if (vote !== "yes" && vote !== "no") return;
     player.vote = vote;
-
-    if (allVoted(room)) {
-      const yes = room.players.filter(p => p.vote === "yes").length;
-      const total = room.players.length;
-      const isLast = room.questionIndex >= questions.length - 1;
-
-      room.results.push({ question: questions[room.questionIndex], yes, total });
-      room.state = "result";
-
-      io.to(roomId).emit("round_result", { yes, total, isLast });
-    }
+    if (allVoted(room)) resolveRound(roomId);
   });
 
-  // NEXT
-  socket.on("next_round", ({ roomId }) => {
-    const room = rooms[roomId];
-    if (!room || room.hostId !== socket.id || room.state !== "result") return;
-
-    advance(roomId);
-  });
-
-  // SKIP (NEW)
   socket.on("skip_question", ({ roomId }) => {
     const room = rooms[roomId];
     if (!room || room.hostId !== socket.id) return;
-
-    advance(roomId, true);
-  });
-
-  function advance(roomId, skipped = false) {
-    const room = rooms[roomId];
-
-    if (!skipped) {
-      const yes = room.players.filter(p => p.vote === "yes").length;
-      const total = room.players.length;
-      room.results.push({ question: questions[room.questionIndex], yes, total });
-    }
-
+    if (room.state !== "question" && room.state !== "result") return;
     room.questionIndex++;
-
-    if (room.questionIndex >= questions.length) {
+    if (room.questionIndex >= room.queue.length) {
       room.state = "over";
       io.to(roomId).emit("game_over", { results: room.results });
     } else {
-      room.state = "question";
-      room.players.forEach(p => p.vote = null);
-
-      io.to(roomId).emit("new_question", {
-        question: questions[room.questionIndex],
-        index: room.questionIndex,
-        total: questions.length
-      });
+      advanceToQuestion(roomId);
     }
-  }
+  });
 
-  // DISCONNECT
+  socket.on("next_round", ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room || room.hostId !== socket.id || room.state !== "result") return;
+    room.questionIndex++;
+    if (room.questionIndex >= room.queue.length) {
+      room.state = "over";
+      io.to(roomId).emit("game_over", { results: room.results });
+    } else {
+      advanceToQuestion(roomId);
+    }
+  });
+
   socket.on("disconnect", () => {
-    for (const [roomId, room] of Object.entries(rooms)) {
-      const idx = room.players.findIndex(p => p.id === socket.id);
-      if (idx === -1) continue;
-
-      room.players.splice(idx, 1);
-
-      if (room.players.length === 0) {
-        delete rooms[roomId];
+    console.log("disconnect", socket.id);
+    for (const roomId of Object.keys(rooms)) {
+      if (rooms[roomId]?.players.some(p => p.id === socket.id)) {
+        handleLeave(socket, roomId);
         break;
       }
-
-      if (room.hostId === socket.id) {
-        room.players[0].isHost = true;
-        room.hostId = room.players[0].id;
-      }
-
-      io.to(roomId).emit("room_update", { players: getRoomPlayers(room) });
-
-      if (room.state === "question" && allVoted(room)) {
-        const yes = room.players.filter(p => p.vote === "yes").length;
-        const total = room.players.length;
-        const isLast = room.questionIndex >= questions.length - 1;
-
-        room.results.push({ question: questions[room.questionIndex], yes, total });
-        room.state = "result";
-
-        io.to(roomId).emit("round_result", { yes, total, isLast });
-      }
-
-      break;
     }
   });
 });
 
+function handleLeave(socket, roomId) {
+  const room = rooms[roomId];
+  if (!room) return;
+  socket.leave(roomId);
+  const idx = room.players.findIndex(p => p.id === socket.id);
+  if (idx === -1) return;
+  room.players.splice(idx, 1);
+  if (room.players.length === 0) { delete rooms[roomId]; return; }
+  if (room.hostId === socket.id) {
+    room.players[0].isHost = true;
+    room.hostId = room.players[0].id;
+  }
+  io.to(roomId).emit("room_update", { players: getRoomPlayers(room) });
+  if (room.state === "question" && allVoted(room)) resolveRound(roomId);
+}
+
 const PORT = process.env.PORT || 3000;
-server.listen(PORT);
+server.listen(PORT, () => console.log(`Server on port ${PORT}`));
