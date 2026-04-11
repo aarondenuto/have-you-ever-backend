@@ -309,6 +309,18 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("end_game", ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room || room.hostId !== socket.id) return;
+  
+    room.state = "over";
+  
+    io.to(roomId).emit("game_over", {
+      results: room.results,
+      scores: buildScores(room)
+    });
+  });
+
   socket.on("disconnect", () => {
     console.log("disconnect", socket.id);
     const roomId = socketRoom[socket.id];
