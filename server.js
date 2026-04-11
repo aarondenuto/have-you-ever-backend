@@ -314,13 +314,62 @@ io.on("connection", (socket) => {
   socket.on("end_game", ({ roomId }) => {
     const room = rooms[roomId];
     if (!room || room.hostId !== socket.id) return;
-  
     room.state = "over";
-  
     io.to(roomId).emit("game_over", {
       results: room.results,
       scores: buildScores(room)
     });
+  });
+
+  // Host creates a fresh lobby and broadcasts the new room code to everyone in the old room
+  socket.on("play_again", ({ roomId }) => {
+    const oldRoom = rooms[roomId];
+    if (!oldRoom || oldRoom.hostId !== socket.id) return;
+
+    const newRoomId = generateRoomId();
+    // Collect names of everyone currently in the old room (connected or not)
+    const playerNames = oldRoom.players.map(p => p.name);
+
+    // Create the new room with the host already in it
+    rooms[newRoomId] = {
+      hostId: socket.id,
+      players: [{ id: socket.id, name: oldRoom.players.find(p => p.id === socket.id)?.name || "Host", isHost: true, vote: null, connected: true, yesCount: 0 }],
+      questionIndex: 0,
+      queue: [],
+      randomOrder: false,
+      state: "lobby",
+      results: []
+    };
+    socketRoom[socket.id] = newRoomId;
+    socket.leave(roomId);
+    socket.join(newRoomId);
+
+    // Tell everyone in the old room the new code so they can auto-join
+    io.to(roomId).emit("play_again_redirect", { newRoomId, playerNames });
+
+    // Clean up old room
+    delete rooms[roomId];
+
+    // Confirm to the host
+    socket.emit("room_created", { roomId: newRoomId });
+    io.to(newRoomId).emit("room_update", { players: getPlayersPayload(rooms[newRoomId]) });
+  });
+
+  // Toggle mid-game shuffle on/off — host only
+  socket.on("set_shuffle", ({ roomId, shuffle: doShuffle }) => {
+    const room = rooms[roomId];
+    if (!room || room.hostId !== socket.id) return;
+    room.randomOrder = doShuffle;
+    // Rebuild the remaining queue while preserving asked questions
+    const askedNums = new Set(room.results.map(r => parseInt(r.question)));
+    const remaining = questions.filter(q => !askedNums.has(q.n));
+    const current = room.queue[room.questionIndex]; // the question currently being shown
+    const rest = remaining.filter(q => current ? q.n !== current.n : true);
+    const orderedRest = doShuffle ? shuffle(rest) : rest.sort((a, b) => a.n - b.n);
+    room.queue = current ? [current, ...orderedRest] : orderedRest;
+    room.questionIndex = 0;
+    // Acknowledge back to host only
+    socket.emit("shuffle_updated", { randomOrder: doShuffle });
   });
 
   socket.on("disconnect", () => {
