@@ -171,9 +171,9 @@ function resolveRound(roomId) {
   const total = room.players.filter(p => p.connected).length;
   const isLast = room.questionIndex >= room.queue.length - 1;
   const q = room.queue[room.questionIndex];
-  // accumulate per-player yes counts
   room.players.forEach(p => { if (p.vote === "yes") p.yesCount++; });
   room.results.push({ question: `${q.n}: ${q.q}`, yes, total });
+  room.questionsAsked = (room.questionsAsked || 0) + 1;
   room.state = "result";
   io.to(roomId).emit("round_result", { yes, total, isLast });
 }
@@ -185,8 +185,8 @@ function advanceToQuestion(roomId) {
   const q = room.queue[room.questionIndex];
   io.to(roomId).emit("new_question", {
     question: `${q.n}: ${q.q}`,
-    index: room.questionIndex,
-    total: room.queue.length
+    index: room.questionsAsked,  // always-incrementing counter shown to players
+    total: questions.length      // always 100
   });
   broadcastVoteCount(roomId);
 }
@@ -211,10 +211,12 @@ io.on("connection", (socket) => {
       hostId: socket.id,
       players: [{ id: socket.id, name: name.slice(0, 20), isHost: true, vote: null, connected: true, yesCount: 0 }],
       questionIndex: 0,
+      questionsAsked: 0,
       queue: [],
       randomOrder: false,
       state: "lobby",
-      results: []
+      results: [],
+      playAgainOptIns: new Set()  // socket ids who want to play again
     };
     socketRoom[socket.id] = roomId;
     socket.join(roomId);
@@ -242,9 +244,9 @@ io.on("connection", (socket) => {
       const jq = room.queue[room.questionIndex];
       socket.emit("joined_midgame", {
         roomId,
-        questionIndex: room.questionIndex,
+        questionIndex: room.questionsAsked || 0,
         question: `${jq.n}: ${jq.q}`,
-        total: room.queue.length,
+        total: questions.length,
         state: room.state,
         lastResult
       });
@@ -266,6 +268,7 @@ io.on("connection", (socket) => {
     room.queue = randomOrder ? shuffle(questions) : [...questions];
     room.state = "question";
     room.questionIndex = 0;
+    room.questionsAsked = 0;
     room.players.forEach(p => { p.vote = null; p.yesCount = 0; });
     io.to(roomId).emit("game_started");
     advanceToQuestion(roomId);
@@ -321,36 +324,60 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Host creates a fresh lobby and broadcasts the new room code to everyone in the old room
-  socket.on("play_again", ({ roomId }) => {
-    const oldRoom = rooms[roomId];
-    if (!oldRoom || oldRoom.hostId !== socket.id) return;
+  // Any player signals they want to play again
+  socket.on("opt_in_play_again", ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room || room.state !== "over") return;
+
+    room.playAgainOptIns = room.playAgainOptIns || new Set();
+    room.playAgainOptIns.add(socket.id);
+
+    // Broadcast updated opt-in list so everyone can see who's in
+    const optInNames = room.players
+      .filter(p => room.playAgainOptIns.has(p.id))
+      .map(p => p.name);
+    io.to(roomId).emit("play_again_update", { optInNames });
+  });
+
+  // Any opted-in player can launch the new game.
+  // If the original host is gone, the first non-host to call this becomes new host.
+  socket.on("launch_play_again", ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room || room.state !== "over") return;
+
+    room.playAgainOptIns = room.playAgainOptIns || new Set();
+
+    // Must have opted in yourself
+    if (!room.playAgainOptIns.has(socket.id)) return;
+
+    // Only the original host may launch — unless the host isn't in the opt-in list
+    const hostOptedIn = room.playAgainOptIns.has(room.hostId);
+    if (hostOptedIn && room.hostId !== socket.id) return; // host still around, wait for them
 
     const newRoomId = generateRoomId();
-    // Collect names of everyone currently in the old room (connected or not)
-    const playerNames = oldRoom.players.map(p => p.name);
+    const launcherName = room.players.find(p => p.id === socket.id)?.name || "Host";
 
-    // Create the new room with the host already in it
     rooms[newRoomId] = {
       hostId: socket.id,
-      players: [{ id: socket.id, name: oldRoom.players.find(p => p.id === socket.id)?.name || "Host", isHost: true, vote: null, connected: true, yesCount: 0 }],
+      players: [{ id: socket.id, name: launcherName, isHost: true, vote: null, connected: true, yesCount: 0 }],
       questionIndex: 0,
+      questionsAsked: 0,
       queue: [],
       randomOrder: false,
       state: "lobby",
-      results: []
+      results: [],
+      playAgainOptIns: new Set()
     };
     socketRoom[socket.id] = newRoomId;
     socket.leave(roomId);
     socket.join(newRoomId);
 
-    // Tell everyone in the old room the new code so they can auto-join
-    io.to(roomId).emit("play_again_redirect", { newRoomId, playerNames });
+    // Everyone else who opted in auto-joins (server will handle their join_room on client click)
+    // Broadcast the new room code to the old room so opt-in clients can join
+    io.to(roomId).emit("play_again_redirect", { newRoomId });
 
-    // Clean up old room
     delete rooms[roomId];
 
-    // Confirm to the host
     socket.emit("room_created", { roomId: newRoomId });
     io.to(newRoomId).emit("room_update", { players: getPlayersPayload(rooms[newRoomId]) });
   });
@@ -360,15 +387,15 @@ io.on("connection", (socket) => {
     const room = rooms[roomId];
     if (!room || room.hostId !== socket.id) return;
     room.randomOrder = doShuffle;
-    // Rebuild the remaining queue while preserving asked questions
-    const askedNums = new Set(room.results.map(r => parseInt(r.question)));
-    const remaining = questions.filter(q => !askedNums.has(q.n));
-    const current = room.queue[room.questionIndex]; // the question currently being shown
-    const rest = remaining.filter(q => current ? q.n !== current.n : true);
+    // Keep the current question in place; reorder everything after it
+    const current = room.queue[room.questionIndex];
+    const askedNs = new Set(room.results.map(r => parseInt(r.question)));
+    if (current) askedNs.add(current.n); // exclude current from the "rest" pool
+    const rest = questions.filter(q => !askedNs.has(q.n));
     const orderedRest = doShuffle ? shuffle(rest) : rest.sort((a, b) => a.n - b.n);
+    // Rebuild: [current, ...reordered rest]; questionIndex stays at 0
     room.queue = current ? [current, ...orderedRest] : orderedRest;
     room.questionIndex = 0;
-    // Acknowledge back to host only
     socket.emit("shuffle_updated", { randomOrder: doShuffle });
   });
 
