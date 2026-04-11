@@ -8,15 +8,12 @@ const server = http.createServer(app);
 const ALLOWED_ORIGIN = "https://aarondenuto.github.io";
 
 const io = new Server(server, {
-  cors: {
-    origin: ALLOWED_ORIGIN,
-    methods: ["GET", "POST"]
-  }
+  cors: { origin: ALLOWED_ORIGIN, methods: ["GET", "POST"] }
 });
 
 app.get("/", (req, res) => res.send("Have You Ever — server running"));
 
-// ── QUESTIONS (Rice Purity Test, canonical order) ───────────────────────────
+// ── QUESTIONS ─────────────────────────────────────────────────────────────────
 const questions = [
   { n: 1,   q: "Held hands romantically?" },
   { n: 2,   q: "Been on a date?" },
@@ -47,7 +44,7 @@ const questions = [
   { n: 27,  q: "Fondled or had your butt cheeks fondled?" },
   { n: 28,  q: "Fondled or had your breasts fondled?" },
   { n: 29,  q: "Fondled or had your genitals fondled?" },
-  { n: 30,  q: "Had or given \"blue balls\"?" },
+  { n: 30,  q: 'Had or given "blue balls"?' },
   { n: 31,  q: "Had an orgasm due to someone else's manipulation?" },
   { n: 32,  q: "Sent a sexually explicit text or instant message?" },
   { n: 33,  q: "Sent or received sexually explicit photographs?" },
@@ -98,7 +95,7 @@ const questions = [
   { n: 78,  q: "Had sexual intercourse while you or your partner's parents were in the same home?" },
   { n: 79,  q: "Had sexual intercourse with non-participating third party in the same room?" },
   { n: 80,  q: "Joined the mile high club?" },
-  { n: 81,  q: "Participated in a \'booty call\' with a partner whom you were not in a relationship with?" },
+  { n: 81,  q: "Participated in a 'booty call' with a partner whom you were not in a relationship with?" },
   { n: 82,  q: "Traveled 100 or more miles for the primary purpose of sexual intercourse?" },
   { n: 83,  q: "Had sexual intercourse with a partner with a 3 or more year age difference?" },
   { n: 84,  q: "Had sexual intercourse with a virgin?" },
@@ -130,7 +127,11 @@ function shuffle(arr) {
 }
 
 // ── ROOM STATE ────────────────────────────────────────────────────────────────
+// players: { id, name, isHost, vote, connected, yesCount }
 const rooms = {};
+
+// socket.id → roomId (for fast disconnect lookup)
+const socketRoom = {};
 
 function generateRoomId() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -139,12 +140,27 @@ function generateRoomId() {
   return rooms[id] ? generateRoomId() : id;
 }
 
-function getRoomPlayers(room) {
-  return room.players.map(p => ({ id: p.id, name: p.name, isHost: p.isHost }));
+function getPlayersPayload(room) {
+  return room.players.map(p => ({
+    id: p.id, name: p.name, isHost: p.isHost, connected: p.connected
+  }));
+}
+
+function votedCount(room) {
+  return room.players.filter(p => p.vote !== null).length;
 }
 
 function allVoted(room) {
   return room.players.length > 0 && room.players.every(p => p.vote !== null);
+}
+
+function broadcastVoteCount(roomId) {
+  const room = rooms[roomId];
+  if (!room) return;
+  io.to(roomId).emit("vote_count", {
+    voted: votedCount(room),
+    total: room.players.length
+  });
 }
 
 function resolveRound(roomId) {
@@ -153,6 +169,8 @@ function resolveRound(roomId) {
   const total = room.players.length;
   const isLast = room.questionIndex >= room.queue.length - 1;
   const q = room.queue[room.questionIndex];
+  // accumulate per-player yes counts
+  room.players.forEach(p => { if (p.vote === "yes") p.yesCount++; });
   room.results.push({ question: `${q.n}: ${q.q}`, yes, total });
   room.state = "result";
   io.to(roomId).emit("round_result", { yes, total, isLast });
@@ -168,6 +186,16 @@ function advanceToQuestion(roomId) {
     index: room.questionIndex,
     total: room.queue.length
   });
+  broadcastVoteCount(roomId);
+}
+
+function promoteNewHost(room) {
+  // Find first connected player; fall back to any player
+  const next = room.players.find(p => p.connected) || room.players[0];
+  if (!next) return;
+  room.players.forEach(p => p.isHost = false);
+  next.isHost = true;
+  room.hostId = next.id;
 }
 
 // ── SOCKET EVENTS ─────────────────────────────────────────────────────────────
@@ -179,16 +207,17 @@ io.on("connection", (socket) => {
     const roomId = generateRoomId();
     rooms[roomId] = {
       hostId: socket.id,
-      players: [{ id: socket.id, name: name.slice(0, 20), isHost: true, vote: null }],
+      players: [{ id: socket.id, name: name.slice(0, 20), isHost: true, vote: null, connected: true, yesCount: 0 }],
       questionIndex: 0,
-      queue: [],          // ordered list of question objects for this game
+      queue: [],
       randomOrder: false,
       state: "lobby",
       results: []
     };
+    socketRoom[socket.id] = roomId;
     socket.join(roomId);
     socket.emit("room_created", { roomId });
-    io.to(roomId).emit("room_update", { players: getRoomPlayers(rooms[roomId]) });
+    io.to(roomId).emit("room_update", { players: getPlayersPayload(rooms[roomId]) });
   });
 
   socket.on("join_room", ({ name, roomId }) => {
@@ -197,16 +226,16 @@ io.on("connection", (socket) => {
     if (room.state === "over") return socket.emit("error", { message: "Game is already over" });
     if (room.players.length >= 20) return socket.emit("error", { message: "Room is full" });
 
-    room.players.push({ id: socket.id, name: name.slice(0, 20), isHost: false, vote: null });
+    room.players.push({ id: socket.id, name: name.slice(0, 20), isHost: false, vote: null, connected: true, yesCount: 0 });
+    socketRoom[socket.id] = roomId;
     socket.join(roomId);
-    io.to(roomId).emit("room_update", { players: getRoomPlayers(room) });
+    io.to(roomId).emit("room_update", { players: getPlayersPayload(room) });
 
     if (room.state === "lobby") {
       socket.emit("room_joined", { roomId });
     } else {
-      // Send current game state so they can jump straight in
       const lastResult = room.state === "result" && room.results.length > 0
-        ? { yes: room.results[room.results.length-1].yes, total: room.results[room.results.length-1].total, isLast: room.questionIndex >= questions.length - 1 }
+        ? { yes: room.results[room.results.length - 1].yes, total: room.results[room.results.length - 1].total, isLast: room.questionIndex >= room.queue.length - 1 }
         : null;
       const jq = room.queue[room.questionIndex];
       socket.emit("joined_midgame", {
@@ -217,13 +246,15 @@ io.on("connection", (socket) => {
         state: room.state,
         lastResult
       });
-      // New joiner has null vote — if everyone else already voted, resolve
+      // mid-game joiner counts as not-yet-voted; broadcast updated count
+      broadcastVoteCount(roomId);
+      // if they joined during "question" and everyone else already voted, resolve
       if (room.state === "question" && allVoted(room)) resolveRound(roomId);
     }
   });
 
   socket.on("leave_room", ({ roomId }) => {
-    handleLeave(socket, roomId);
+    handleLeave(socket, roomId, true);
   });
 
   socket.on("start_game", ({ roomId, randomOrder }) => {
@@ -233,7 +264,7 @@ io.on("connection", (socket) => {
     room.queue = randomOrder ? shuffle(questions) : [...questions];
     room.state = "question";
     room.questionIndex = 0;
-    room.players.forEach(p => p.vote = null);
+    room.players.forEach(p => { p.vote = null; p.yesCount = 0; });
     io.to(roomId).emit("game_started");
     advanceToQuestion(roomId);
   });
@@ -242,9 +273,14 @@ io.on("connection", (socket) => {
     const room = rooms[roomId];
     if (!room || room.state !== "question") return;
     const player = room.players.find(p => p.id === socket.id);
-    if (!player || player.vote !== null) return;
-    if (vote !== "yes" && vote !== "no") return;
-    player.vote = vote;
+    if (!player) return;
+    // allow toggling: if same vote, deselect (set null); if different or null, set it
+    if (player.vote === vote) {
+      player.vote = null;
+    } else {
+      player.vote = vote;
+    }
+    broadcastVoteCount(roomId);
     if (allVoted(room)) resolveRound(roomId);
   });
 
@@ -255,7 +291,7 @@ io.on("connection", (socket) => {
     room.questionIndex++;
     if (room.questionIndex >= room.queue.length) {
       room.state = "over";
-      io.to(roomId).emit("game_over", { results: room.results });
+      io.to(roomId).emit("game_over", { results: room.results, scores: buildScores(room) });
     } else {
       advanceToQuestion(roomId);
     }
@@ -267,7 +303,7 @@ io.on("connection", (socket) => {
     room.questionIndex++;
     if (room.questionIndex >= room.queue.length) {
       room.state = "over";
-      io.to(roomId).emit("game_over", { results: room.results });
+      io.to(roomId).emit("game_over", { results: room.results, scores: buildScores(room) });
     } else {
       advanceToQuestion(roomId);
     }
@@ -275,29 +311,51 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("disconnect", socket.id);
-    for (const roomId of Object.keys(rooms)) {
-      if (rooms[roomId]?.players.some(p => p.id === socket.id)) {
-        handleLeave(socket, roomId);
-        break;
-      }
-    }
+    const roomId = socketRoom[socket.id];
+    if (roomId) handleLeave(socket, roomId, false);
   });
 });
 
-function handleLeave(socket, roomId) {
+function buildScores(room) {
+  return room.players
+    .map(p => ({ name: p.name, yesCount: p.yesCount, score: 100 - p.yesCount }))
+    .sort((a, b) => b.score - a.score);
+}
+
+function handleLeave(socket, roomId, permanent) {
   const room = rooms[roomId];
   if (!room) return;
-  socket.leave(roomId);
-  const idx = room.players.findIndex(p => p.id === socket.id);
-  if (idx === -1) return;
-  room.players.splice(idx, 1);
-  if (room.players.length === 0) { delete rooms[roomId]; return; }
-  if (room.hostId === socket.id) {
-    room.players[0].isHost = true;
-    room.hostId = room.players[0].id;
+  delete socketRoom[socket.id];
+
+  if (permanent) {
+    // Full removal
+    socket.leave(roomId);
+    const idx = room.players.findIndex(p => p.id === socket.id);
+    if (idx === -1) return;
+    const wasHost = room.players[idx].isHost;
+    room.players.splice(idx, 1);
+    if (room.players.length === 0) { delete rooms[roomId]; return; }
+    if (wasHost) promoteNewHost(room);
+    io.to(roomId).emit("room_update", { players: getPlayersPayload(room) });
+    if (room.state === "question" && allVoted(room)) resolveRound(roomId);
+  } else {
+    // Disconnected but keep in room — mark offline, possibly promote host
+    const player = room.players.find(p => p.id === socket.id);
+    if (!player) return;
+    player.connected = false;
+    const wasHost = player.isHost;
+    if (wasHost) {
+      player.isHost = false;
+      promoteNewHost(room);
+    }
+    io.to(roomId).emit("room_update", { players: getPlayersPayload(room) });
+    // If they hadn't voted yet and everyone else has, treat as abstain so game doesn't stall
+    if (room.state === "question" && player.vote === null) {
+      player.vote = "abstain";
+      broadcastVoteCount(roomId);
+      if (allVoted(room)) resolveRound(roomId);
+    }
   }
-  io.to(roomId).emit("room_update", { players: getRoomPlayers(room) });
-  if (room.state === "question" && allVoted(room)) resolveRound(roomId);
 }
 
 const PORT = process.env.PORT || 3000;
