@@ -127,10 +127,7 @@ function shuffle(arr) {
 }
 
 // ── ROOM STATE ────────────────────────────────────────────────────────────────
-// players: { id, name, isHost, vote, connected, yesCount }
 const rooms = {};
-
-// socket.id → roomId (for fast disconnect lookup)
 const socketRoom = {};
 
 function generateRoomId() {
@@ -159,10 +156,7 @@ function broadcastVoteCount(roomId) {
   const room = rooms[roomId];
   if (!room) return;
   const connected = room.players.filter(p => p.connected);
-  io.to(roomId).emit("vote_count", {
-    voted: votedCount(room),
-    total: connected.length
-  });
+  io.to(roomId).emit("vote_count", { voted: votedCount(room), total: connected.length });
 }
 
 function resolveRound(roomId) {
@@ -185,19 +179,27 @@ function advanceToQuestion(roomId) {
   const q = room.queue[room.questionIndex];
   io.to(roomId).emit("new_question", {
     question: `${q.n}: ${q.q}`,
-    index: room.questionsAsked,  // always-incrementing counter shown to players
-    total: questions.length      // always 100
+    index: room.questionsAsked,   // counter unaffected by shuffle reordering
+    total: questions.length        // always 100
   });
   broadcastVoteCount(roomId);
 }
 
 function promoteNewHost(room) {
-  // Find first connected player; fall back to any player
   const next = room.players.find(p => p.connected) || room.players[0];
   if (!next) return;
   room.players.forEach(p => p.isHost = false);
   next.isHost = true;
   room.hostId = next.id;
+}
+
+function broadcastOptIns(roomId) {
+  const room = rooms[roomId];
+  if (!room) return;
+  const optInNames = room.players
+    .filter(p => room.playAgainOptIns.has(p.id))
+    .map(p => p.name);
+  io.to(roomId).emit("play_again_update", { optInNames });
 }
 
 // ── SOCKET EVENTS ─────────────────────────────────────────────────────────────
@@ -216,7 +218,8 @@ io.on("connection", (socket) => {
       randomOrder: false,
       state: "lobby",
       results: [],
-      playAgainOptIns: new Set()  // socket ids who want to play again
+      playAgainOptIns: new Set(),
+      nextRoomId: null
     };
     socketRoom[socket.id] = roomId;
     socket.join(roomId);
@@ -239,7 +242,11 @@ io.on("connection", (socket) => {
       socket.emit("room_joined", { roomId });
     } else {
       const lastResult = room.state === "result" && room.results.length > 0
-        ? { yes: room.results[room.results.length - 1].yes, total: room.results[room.results.length - 1].total, isLast: room.questionIndex >= room.queue.length - 1 }
+        ? {
+            yes: room.results[room.results.length - 1].yes,
+            total: room.results[room.results.length - 1].total,
+            isLast: room.questionIndex >= room.queue.length - 1
+          }
         : null;
       const jq = room.queue[room.questionIndex];
       socket.emit("joined_midgame", {
@@ -250,9 +257,7 @@ io.on("connection", (socket) => {
         state: room.state,
         lastResult
       });
-      // mid-game joiner counts as not-yet-voted; broadcast updated count
       broadcastVoteCount(roomId);
-      // if they joined during "question" and everyone else already voted, resolve
       if (room.state === "question" && allVoted(room)) resolveRound(roomId);
     }
   });
@@ -279,14 +284,17 @@ io.on("connection", (socket) => {
     if (!room || room.state !== "question") return;
     const player = room.players.find(p => p.id === socket.id);
     if (!player) return;
-    // allow toggling: if same vote, deselect (set null); if different or null, set it
-    if (player.vote === vote) {
-      player.vote = null;
-    } else {
-      player.vote = vote;
-    }
+    player.vote = player.vote === vote ? null : vote;
     broadcastVoteCount(roomId);
     if (allVoted(room)) resolveRound(roomId);
+  });
+
+  // Host forces current question to end with votes counted as-is
+  socket.on("end_question", ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room || room.hostId !== socket.id || room.state !== "question") return;
+    room.players.forEach(p => { if (p.connected && p.vote === null) p.vote = "abstain"; });
+    resolveRound(roomId);
   });
 
   socket.on("skip_question", ({ roomId }) => {
@@ -318,44 +326,35 @@ io.on("connection", (socket) => {
     const room = rooms[roomId];
     if (!room || room.hostId !== socket.id) return;
     room.state = "over";
-    io.to(roomId).emit("game_over", {
-      results: room.results,
-      scores: buildScores(room)
-    });
+    io.to(roomId).emit("game_over", { results: room.results, scores: buildScores(room) });
   });
 
-  // Any player signals they want to play again
+  // ── PLAY AGAIN ──────────────────────────────────────────────────────────────
+  // First player to opt in becomes host of a new lobby immediately.
+  // Every subsequent opt-in gets redirected straight into that new lobby.
   socket.on("opt_in_play_again", ({ roomId }) => {
     const room = rooms[roomId];
     if (!room || room.state !== "over") return;
-
-    room.playAgainOptIns = room.playAgainOptIns || new Set();
     room.playAgainOptIns.add(socket.id);
 
-    // Broadcast updated opt-in list so everyone can see who's in
-    const optInNames = room.players
-      .filter(p => room.playAgainOptIns.has(p.id))
-      .map(p => p.name);
-    io.to(roomId).emit("play_again_update", { optInNames });
-  });
+    // New room already created by a prior opt-in — join it directly
+    if (room.nextRoomId && rooms[room.nextRoomId]) {
+      const newRoom = rooms[room.nextRoomId];
+      const playerName = room.players.find(p => p.id === socket.id)?.name || "Player";
+      socketRoom[socket.id] = room.nextRoomId;
+      socket.leave(roomId);
+      socket.join(room.nextRoomId);
+      newRoom.players.push({ id: socket.id, name: playerName, isHost: false, vote: null, connected: true, yesCount: 0 });
+      io.to(room.nextRoomId).emit("room_update", { players: getPlayersPayload(newRoom) });
+      socket.emit("room_joined", { roomId: room.nextRoomId });
+      broadcastOptIns(roomId);
+      return;
+    }
 
-  // Any opted-in player can launch the new game.
-  // If the original host is gone, the first non-host to call this becomes new host.
-  socket.on("launch_play_again", ({ roomId }) => {
-    const room = rooms[roomId];
-    if (!room || room.state !== "over") return;
-
-    room.playAgainOptIns = room.playAgainOptIns || new Set();
-
-    // Must have opted in yourself
-    if (!room.playAgainOptIns.has(socket.id)) return;
-
-    // Only the original host may launch — unless the host isn't in the opt-in list
-    const hostOptedIn = room.playAgainOptIns.has(room.hostId);
-    if (hostOptedIn && room.hostId !== socket.id) return; // host still around, wait for them
-
+    // First opt-in — create the new lobby, this player is the host
     const newRoomId = generateRoomId();
-    const launcherName = room.players.find(p => p.id === socket.id)?.name || "Host";
+    room.nextRoomId = newRoomId;
+    const launcherName = room.players.find(p => p.id === socket.id)?.name || "Player";
 
     rooms[newRoomId] = {
       hostId: socket.id,
@@ -366,34 +365,39 @@ io.on("connection", (socket) => {
       randomOrder: false,
       state: "lobby",
       results: [],
-      playAgainOptIns: new Set()
+      playAgainOptIns: new Set(),
+      nextRoomId: null
     };
     socketRoom[socket.id] = newRoomId;
     socket.leave(roomId);
     socket.join(newRoomId);
 
-    // Everyone else who opted in auto-joins (server will handle their join_room on client click)
-    // Broadcast the new room code to the old room so opt-in clients can join
-    io.to(roomId).emit("play_again_redirect", { newRoomId });
-
-    delete rooms[roomId];
+    // Notify remaining end-screen players that a new game is waiting
+    io.to(roomId).emit("play_again_available", { newRoomId, hostName: launcherName });
+    broadcastOptIns(roomId);
 
     socket.emit("room_created", { roomId: newRoomId });
     io.to(newRoomId).emit("room_update", { players: getPlayersPayload(rooms[newRoomId]) });
   });
 
-  // Toggle mid-game shuffle on/off — host only
+  // Player cancels their play-again opt-in from the waiting panel
+  socket.on("leave_play_again", ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+    room.playAgainOptIns.delete(socket.id);
+    broadcastOptIns(roomId);
+  });
+
+  // Toggle mid-game shuffle — host only
   socket.on("set_shuffle", ({ roomId, shuffle: doShuffle }) => {
     const room = rooms[roomId];
     if (!room || room.hostId !== socket.id) return;
     room.randomOrder = doShuffle;
-    // Keep the current question in place; reorder everything after it
     const current = room.queue[room.questionIndex];
     const askedNs = new Set(room.results.map(r => parseInt(r.question)));
-    if (current) askedNs.add(current.n); // exclude current from the "rest" pool
+    if (current) askedNs.add(current.n);
     const rest = questions.filter(q => !askedNs.has(q.n));
     const orderedRest = doShuffle ? shuffle(rest) : rest.sort((a, b) => a.n - b.n);
-    // Rebuild: [current, ...reordered rest]; questionIndex stays at 0
     room.queue = current ? [current, ...orderedRest] : orderedRest;
     room.questionIndex = 0;
     socket.emit("shuffle_updated", { randomOrder: doShuffle });
@@ -407,10 +411,12 @@ io.on("connection", (socket) => {
 });
 
 function buildScores(room) {
-  const questionsAsked = room.results.length; // only questions actually resolved
+  const questionsAsked = room.results.length;
   return room.players
     .map(p => {
-      const pct = questionsAsked > 0 ? Math.round(((questionsAsked - p.yesCount) / questionsAsked) * 100) : 100;
+      const pct = questionsAsked > 0
+        ? Math.round(((questionsAsked - p.yesCount) / questionsAsked) * 100)
+        : 100;
       return { name: p.name, yesCount: p.yesCount, score: pct };
     })
     .sort((a, b) => b.score - a.score);
@@ -422,7 +428,6 @@ function handleLeave(socket, roomId, permanent) {
   delete socketRoom[socket.id];
 
   if (permanent) {
-    // Full removal
     socket.leave(roomId);
     const idx = room.players.findIndex(p => p.id === socket.id);
     if (idx === -1) return;
@@ -430,20 +435,21 @@ function handleLeave(socket, roomId, permanent) {
     room.players.splice(idx, 1);
     if (room.players.length === 0) { delete rooms[roomId]; return; }
     if (wasHost) promoteNewHost(room);
+    room.playAgainOptIns.delete(socket.id);
+    if (room.state === "over") broadcastOptIns(roomId);
     io.to(roomId).emit("room_update", { players: getPlayersPayload(room) });
     if (room.state === "question" && allVoted(room)) resolveRound(roomId);
   } else {
-    // Disconnected but keep in room — mark offline, possibly promote host
     const player = room.players.find(p => p.id === socket.id);
     if (!player) return;
     player.connected = false;
-    const wasHost = player.isHost;
-    if (wasHost) {
+    if (player.isHost) {
       player.isHost = false;
       promoteNewHost(room);
     }
+    room.playAgainOptIns.delete(socket.id);
+    if (room.state === "over") broadcastOptIns(roomId);
     io.to(roomId).emit("room_update", { players: getPlayersPayload(room) });
-    // If they hadn't voted yet and everyone else has, treat as abstain so game doesn't stall
     if (room.state === "question" && player.vote === null) {
       player.vote = "abstain";
       broadcastVoteCount(roomId);
