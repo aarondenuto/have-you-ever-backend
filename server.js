@@ -147,26 +147,28 @@ function getPlayersPayload(room) {
 }
 
 function votedCount(room) {
-  return room.players.filter(p => p.vote !== null).length;
+  return room.players.filter(p => p.vote !== null && p.connected).length;
 }
 
 function allVoted(room) {
-  return room.players.length > 0 && room.players.every(p => p.vote !== null);
+  const connected = room.players.filter(p => p.connected);
+  return connected.length > 0 && connected.every(p => p.vote !== null);
 }
 
 function broadcastVoteCount(roomId) {
   const room = rooms[roomId];
   if (!room) return;
+  const connected = room.players.filter(p => p.connected);
   io.to(roomId).emit("vote_count", {
     voted: votedCount(room),
-    total: room.players.length
+    total: connected.length
   });
 }
 
 function resolveRound(roomId) {
   const room = rooms[roomId];
   const yes = room.players.filter(p => p.vote === "yes").length;
-  const total = room.players.length;
+  const total = room.players.filter(p => p.connected).length;
   const isLast = room.questionIndex >= room.queue.length - 1;
   const q = room.queue[room.questionIndex];
   // accumulate per-player yes counts
@@ -329,8 +331,12 @@ io.on("connection", (socket) => {
 });
 
 function buildScores(room) {
+  const questionsAsked = room.results.length; // only questions actually resolved
   return room.players
-    .map(p => ({ name: p.name, yesCount: p.yesCount, score: 100 - p.yesCount }))
+    .map(p => {
+      const pct = questionsAsked > 0 ? Math.round(((questionsAsked - p.yesCount) / questionsAsked) * 100) : 100;
+      return { name: p.name, yesCount: p.yesCount, score: pct };
+    })
     .sort((a, b) => b.score - a.score);
 }
 
