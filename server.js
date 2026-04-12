@@ -143,6 +143,21 @@ function getPlayersPayload(room) {
   }));
 }
 
+function getSpectatorsPayload(room) {
+  return (room.spectators || []).map(s => ({
+    id: s.id, name: s.name, connected: s.connected
+  }));
+}
+
+function broadcastRoomUpdate(roomId) {
+  const room = rooms[roomId];
+  if (!room) return;
+  io.to(roomId).emit("room_update", {
+    players: getPlayersPayload(room),
+    spectators: getSpectatorsPayload(room)
+  });
+}
+
 function votedCount(room) {
   return room.players.filter(p => p.vote !== null && p.connected).length;
 }
@@ -212,6 +227,7 @@ io.on("connection", (socket) => {
     rooms[roomId] = {
       hostId: socket.id,
       players: [{ id: socket.id, name: name.slice(0, 20), isHost: true, vote: null, connected: true, yesCount: 0 }],
+      spectators: [],
       questionIndex: 0,
       questionsAsked: 0,
       queue: [],
@@ -224,7 +240,7 @@ io.on("connection", (socket) => {
     socketRoom[socket.id] = roomId;
     socket.join(roomId);
     socket.emit("room_created", { roomId });
-    io.to(roomId).emit("room_update", { players: getPlayersPayload(rooms[roomId]) });
+    broadcastRoomUpdate(roomId);
   });
 
   socket.on("join_room", ({ name, roomId }) => {
@@ -236,7 +252,7 @@ io.on("connection", (socket) => {
     room.players.push({ id: socket.id, name: name.slice(0, 20), isHost: false, vote: null, connected: true, yesCount: 0 });
     socketRoom[socket.id] = roomId;
     socket.join(roomId);
-    io.to(roomId).emit("room_update", { players: getPlayersPayload(room) });
+    broadcastRoomUpdate(roomId);
 
     if (room.state === "lobby") {
       socket.emit("room_joined", { roomId });
@@ -255,7 +271,8 @@ io.on("connection", (socket) => {
         question: `${jq.n}: ${jq.q}`,
         total: questions.length,
         state: room.state,
-        lastResult
+        lastResult,
+        spectators: getSpectatorsPayload(room)
       });
       broadcastVoteCount(roomId);
       if (room.state === "question" && allVoted(room)) resolveRound(roomId);
@@ -264,6 +281,29 @@ io.on("connection", (socket) => {
 
   socket.on("leave_room", ({ roomId }) => {
     handleLeave(socket, roomId, true);
+  });
+
+  // Non-host player converts themselves to a spectator (one-way, irreversible)
+  socket.on("become_spectator", ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+    // Don't allow host to spectate
+    const idx = room.players.findIndex(p => p.id === socket.id);
+    if (idx === -1) return; // already a spectator or not found
+    const player = room.players[idx];
+    if (player.isHost) return;
+    // Move from players to spectators
+    room.players.splice(idx, 1);
+    room.spectators = room.spectators || [];
+    room.spectators.push({ id: socket.id, name: player.name, connected: true });
+    // If they had a vote in progress, treat as abstain
+    if (room.state === "question") {
+      broadcastVoteCount(roomId);
+      if (allVoted(room)) resolveRound(roomId);
+    }
+    broadcastRoomUpdate(roomId);
+    // Tell the spectator their new status
+    socket.emit("now_spectating");
   });
 
   socket.on("start_game", ({ roomId, randomOrder }) => {
@@ -345,7 +385,7 @@ io.on("connection", (socket) => {
       socket.leave(roomId);
       socket.join(room.nextRoomId);
       newRoom.players.push({ id: socket.id, name: playerName, isHost: false, vote: null, connected: true, yesCount: 0 });
-      io.to(room.nextRoomId).emit("room_update", { players: getPlayersPayload(newRoom) });
+      broadcastRoomUpdate(room.nextRoomId);
       socket.emit("room_joined", { roomId: room.nextRoomId });
       broadcastOptIns(roomId);
       return;
@@ -359,6 +399,7 @@ io.on("connection", (socket) => {
     rooms[newRoomId] = {
       hostId: socket.id,
       players: [{ id: socket.id, name: launcherName, isHost: true, vote: null, connected: true, yesCount: 0 }],
+      spectators: [],
       questionIndex: 0,
       questionsAsked: 0,
       queue: [],
@@ -377,7 +418,7 @@ io.on("connection", (socket) => {
     broadcastOptIns(roomId);
 
     socket.emit("room_created", { roomId: newRoomId });
-    io.to(newRoomId).emit("room_update", { players: getPlayersPayload(rooms[newRoomId]) });
+    broadcastRoomUpdate(newRoomId);
   });
 
   // Player cancels their play-again opt-in from the waiting panel
@@ -427,17 +468,31 @@ function handleLeave(socket, roomId, permanent) {
   if (!room) return;
   delete socketRoom[socket.id];
 
+  // Check if this socket is a spectator
+  const specIdx = (room.spectators || []).findIndex(s => s.id === socket.id);
+  if (specIdx !== -1) {
+    if (permanent) {
+      room.spectators.splice(specIdx, 1);
+    } else {
+      room.spectators[specIdx].connected = false;
+    }
+    broadcastRoomUpdate(roomId);
+    if (permanent) socket.leave(roomId);
+    return;
+  }
+
   if (permanent) {
     socket.leave(roomId);
     const idx = room.players.findIndex(p => p.id === socket.id);
     if (idx === -1) return;
     const wasHost = room.players[idx].isHost;
     room.players.splice(idx, 1);
+    if (room.players.length === 0 && (room.spectators || []).length === 0) { delete rooms[roomId]; return; }
     if (room.players.length === 0) { delete rooms[roomId]; return; }
     if (wasHost) promoteNewHost(room);
     room.playAgainOptIns.delete(socket.id);
     if (room.state === "over") broadcastOptIns(roomId);
-    io.to(roomId).emit("room_update", { players: getPlayersPayload(room) });
+    broadcastRoomUpdate(roomId);
     if (room.state === "question" && allVoted(room)) resolveRound(roomId);
   } else {
     const player = room.players.find(p => p.id === socket.id);
@@ -449,7 +504,7 @@ function handleLeave(socket, roomId, permanent) {
     }
     room.playAgainOptIns.delete(socket.id);
     if (room.state === "over") broadcastOptIns(roomId);
-    io.to(roomId).emit("room_update", { players: getPlayersPayload(room) });
+    broadcastRoomUpdate(roomId);
     if (room.state === "question" && player.vote === null) {
       player.vote = "abstain";
       broadcastVoteCount(roomId);
