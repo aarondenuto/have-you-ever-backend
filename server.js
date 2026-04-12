@@ -1,517 +1,1235 @@
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Have You Ever — Aaron DeNuto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=block">
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
-const app = express();
-const server = http.createServer(app);
-
-const ALLOWED_ORIGIN = "https://aarondenuto.github.io";
-
-const io = new Server(server, {
-  cors: { origin: ALLOWED_ORIGIN, methods: ["GET", "POST"] }
-});
-
-app.get("/", (req, res) => res.send("Have You Ever — server running"));
-
-// ── QUESTIONS ─────────────────────────────────────────────────────────────────
-const questions = [
-  { n: 1,   q: "Held hands romantically?" },
-  { n: 2,   q: "Been on a date?" },
-  { n: 3,   q: "Been in a relationship?" },
-  { n: 4,   q: "Danced without leaving room for Jesus?" },
-  { n: 5,   q: "Kissed a non-family member?" },
-  { n: 6,   q: "Kissed a non-family member on the lips?" },
-  { n: 7,   q: "French kissed?" },
-  { n: 8,   q: "French kissed in public?" },
-  { n: 9,   q: "Kissed on the neck?" },
-  { n: 10,  q: "Kissed horizontally?" },
-  { n: 11,  q: "Given or received a hickey?" },
-  { n: 12,  q: "Kissed or been kissed on the breast?" },
-  { n: 13,  q: "Kissed someone below the belt?" },
-  { n: 14,  q: "Kissed for more than two hours consecutively?" },
-  { n: 15,  q: "Played a game involving stripping?" },
-  { n: 16,  q: "Seen or been seen by another person in a sensual context?" },
-  { n: 17,  q: "Masturbated?" },
-  { n: 18,  q: "Masturbated to a picture or video?" },
-  { n: 19,  q: "Masturbated while someone else was in the room?" },
-  { n: 20,  q: "Been caught masturbating?" },
-  { n: 21,  q: "Masturbated with an inanimate object?" },
-  { n: 22,  q: "Seen or read pornographic material?" },
-  { n: 23,  q: "Massaged or been massaged sensually?" },
-  { n: 24,  q: "Gone through the motions of intercourse while fully dressed?" },
-  { n: 25,  q: "Undressed or been undressed by a MPS?" },
-  { n: 26,  q: "Showered with a MPS?" },
-  { n: 27,  q: "Fondled or had your butt cheeks fondled?" },
-  { n: 28,  q: "Fondled or had your breasts fondled?" },
-  { n: 29,  q: "Fondled or had your genitals fondled?" },
-  { n: 30,  q: 'Had or given "blue balls"?' },
-  { n: 31,  q: "Had an orgasm due to someone else's manipulation?" },
-  { n: 32,  q: "Sent a sexually explicit text or instant message?" },
-  { n: 33,  q: "Sent or received sexually explicit photographs?" },
-  { n: 34,  q: "Engaged in sexually explicit activity over video chat?" },
-  { n: 35,  q: "Cheated on a significant other during a relationship?" },
-  { n: 36,  q: "Purchased contraceptives?" },
-  { n: 37,  q: "Gave oral sex?" },
-  { n: 38,  q: "Received oral sex?" },
-  { n: 39,  q: "Ingested someone else's genital secretion?" },
-  { n: 40,  q: "Used a sex toy with a partner?" },
-  { n: 41,  q: "Spent the night with a MPS?" },
-  { n: 42,  q: "Been walked in on while engaging in a sexual act?" },
-  { n: 43,  q: "Kicked a roommate out to commit a sexual act?" },
-  { n: 44,  q: "Ingested alcohol in a non-religious context?" },
-  { n: 45,  q: "Played a drinking game?" },
-  { n: 46,  q: "Been drunk?" },
-  { n: 47,  q: "Faked sobriety to parents or teachers?" },
-  { n: 48,  q: "Had severe memory loss due to alcohol?" },
-  { n: 49,  q: "Used tobacco?" },
-  { n: 50,  q: "Used marijuana?" },
-  { n: 51,  q: "Used a drug stronger than marijuana?" },
-  { n: 52,  q: "Used methamphetamine, crack cocaine, PCP, horse tranquilizers or heroin?" },
-  { n: 53,  q: "Been sent to the office of a principal, dean or judicial affairs representative for a disciplinary infraction?" },
-  { n: 54,  q: "Been put on disciplinary probation or suspended?" },
-  { n: 55,  q: "Urinated in public?" },
-  { n: 56,  q: "Gone skinny-dipping?" },
-  { n: 57,  q: "Gone streaking?" },
-  { n: 58,  q: "Seen a stripper?" },
-  { n: 59,  q: "Had the police called on you?" },
-  { n: 60,  q: "Run from the police?" },
-  { n: 61,  q: "Had the police question you?" },
-  { n: 62,  q: "Had the police handcuff you?" },
-  { n: 63,  q: "Been arrested?" },
-  { n: 64,  q: "Been convicted of a crime?" },
-  { n: 65,  q: "Been convicted of a felony?" },
-  { n: 66,  q: "Committed an act of vandalism?" },
-  { n: 67,  q: "Had sexual intercourse?" },
-  { n: 68,  q: "Had sexual intercourse three or more times in one night?" },
-  { n: 69,  q: "?" },
-  { n: 70,  q: "Had sexual intercourse 10 or more times?" },
-  { n: 71,  q: "Had sexual intercourse in four or more positions?" },
-  { n: 72,  q: "Had sexual intercourse with a stranger or person you met within 24 hours?" },
-  { n: 73,  q: "Had sexual intercourse in a motor vehicle?" },
-  { n: 74,  q: "Had sexual intercourse outdoors?" },
-  { n: 75,  q: "Had sexual intercourse in public?" },
-  { n: 76,  q: "Had sexual intercourse in a swimming pool or hot tub?" },
-  { n: 77,  q: "Had sexual intercourse in a bed not belonging to you or your partner?" },
-  { n: 78,  q: "Had sexual intercourse while you or your partner's parents were in the same home?" },
-  { n: 79,  q: "Had sexual intercourse with non-participating third party in the same room?" },
-  { n: 80,  q: "Joined the mile high club?" },
-  { n: 81,  q: "Participated in a 'booty call' with a partner whom you were not in a relationship with?" },
-  { n: 82,  q: "Traveled 100 or more miles for the primary purpose of sexual intercourse?" },
-  { n: 83,  q: "Had sexual intercourse with a partner with a 3 or more year age difference?" },
-  { n: 84,  q: "Had sexual intercourse with a virgin?" },
-  { n: 85,  q: "Had sexual intercourse without a condom?" },
-  { n: 86,  q: "Had a STI test due to reasonable suspicion?" },
-  { n: 87,  q: "Had a STI?" },
-  { n: 88,  q: "Had a threesome?" },
-  { n: 89,  q: "Attended an orgy?" },
-  { n: 90,  q: "Had two or more distinct acts of sexual intercourse with two or more people within 24 hours?" },
-  { n: 91,  q: "Had sexual intercourse with five or more partners?" },
-  { n: 92,  q: "Been photographed or filmed during sexual intercourse by yourself or others?" },
-  { n: 93,  q: "Had period sex?" },
-  { n: 94,  q: "Had anal sex?" },
-  { n: 95,  q: "Had a pregnancy scare?" },
-  { n: 96,  q: "Impregnated someone or been impregnated?" },
-  { n: 97,  q: "Paid or been paid for a sexual act?" },
-  { n: 98,  q: "Committed an act of voyeurism?" },
-  { n: 99,  q: "Committed an act of incest?" },
-  { n: 100, q: "Engaged in bestiality?" }
-];
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111;
+    --border: #222;
+    --accent: #e8ff47;
+    --accent2: #ff4d6d;
+    --green: #3ddc84;
+    --red: #ff4d6d;
+    --text: #f0f0f0;
+    --muted: #555;
+    --radius: 4px;
   }
-  return a;
-}
 
-// ── ROOM STATE ────────────────────────────────────────────────────────────────
-const rooms = {};
-const socketRoom = {};
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-function generateRoomId() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  let id = "";
-  for (let i = 0; i < 4; i++) id += chars[Math.floor(Math.random() * chars.length)];
-  return rooms[id] ? generateRoomId() : id;
-}
+  html, body { height: 100%; overscroll-behavior: none; }
 
-function getPlayersPayload(room) {
-  return room.players.map(p => ({
-    id: p.id, name: p.name, isHost: p.isHost, connected: p.connected
-  }));
-}
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  body.fonts-ready { opacity: 1; }
 
-function getSpectatorsPayload(room) {
-  return (room.spectators || []).map(s => ({
-    id: s.id, name: s.name, connected: s.connected
-  }));
-}
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(232,255,71,0.04) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(255,77,109,0.04) 0%, transparent 50%);
+    pointer-events: none;
+  }
 
-function broadcastRoomUpdate(roomId) {
-  const room = rooms[roomId];
-  if (!room) return;
-  io.to(roomId).emit("room_update", {
-    players: getPlayersPayload(room),
-    spectators: getSpectatorsPayload(room)
-  });
-}
+  /* Screens that overflow naturally scroll; fixed-height screens stay locked */
+  .screen { display: none; width: 100%; max-width: 480px; }
+  .screen.active { display: flex; flex-direction: column; gap: 16px; }
 
-function votedCount(room) {
-  return room.players.filter(p => p.vote !== null && p.connected).length;
-}
+  /* Game + lobby don't need scroll — content fits on one screen */
+  #screen-game.active, #screen-lobby.active {
+    max-height: 100dvh;
+    overflow: hidden;
+  }
 
-function allVoted(room) {
-  const connected = room.players.filter(p => p.connected);
-  return connected.length > 0 && connected.every(p => p.vote !== null);
-}
+  /* ── TYPOGRAPHY ── */
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(3rem, 12vw, 5.5rem);
+    letter-spacing: 0.05em;
+    line-height: 1;
+    color: var(--accent);
+  }
+  .logo span { color: var(--accent2); }
 
-function broadcastVoteCount(roomId) {
-  const room = rooms[roomId];
-  if (!room) return;
-  const connected = room.players.filter(p => p.connected);
-  io.to(roomId).emit("vote_count", { voted: votedCount(room), total: connected.length });
-}
+  .tagline {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-top: -8px;
+  }
 
-function resolveRound(roomId) {
-  const room = rooms[roomId];
-  const yes = room.players.filter(p => p.vote === "yes").length;
-  const total = room.players.filter(p => p.connected).length;
-  const isLast = room.questionIndex >= room.queue.length - 1;
-  const q = room.queue[room.questionIndex];
-  room.players.forEach(p => { if (p.vote === "yes") p.yesCount++; });
-  room.results.push({ question: `${q.n}: ${q.q}`, yes, total });
-  room.questionsAsked = (room.questionsAsked || 0) + 1;
-  room.state = "result";
-  io.to(roomId).emit("round_result", { yes, total, isLast });
-}
+  /* ── CARDS / INPUTS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
 
-function advanceToQuestion(roomId) {
-  const room = rooms[roomId];
-  room.state = "question";
-  room.players.forEach(p => p.vote = null);
-  const q = room.queue[room.questionIndex];
-  io.to(roomId).emit("new_question", {
-    question: `${q.n}: ${q.q}`,
-    index: room.questionsAsked,   // counter unaffected by shuffle reordering
-    total: questions.length        // always 100
-  });
-  broadcastVoteCount(roomId);
-}
+  .card-label {
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
 
-function promoteNewHost(room) {
-  const next = room.players.find(p => p.connected) || room.players[0];
-  if (!next) return;
-  room.players.forEach(p => p.isHost = false);
-  next.isHost = true;
-  room.hostId = next.id;
-}
+  input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+    letter-spacing: 0.05em;
+  }
+  input::placeholder { color: var(--muted); }
+  input:focus { border-color: var(--accent); }
 
-function broadcastOptIns(roomId) {
-  const room = rooms[roomId];
-  if (!room) return;
-  const optInNames = room.players
-    .filter(p => room.playAgainOptIns.has(p.id))
-    .map(p => p.name);
-  io.to(roomId).emit("play_again_update", { optInNames });
-}
+  /* ── BUTTONS ── */
+  .btn {
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius);
+    color: #0a0a0a;
+    cursor: pointer;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 0.12em;
+    padding: 14px 20px;
+    transition: all 0.15s ease;
+    width: 100%;
+  }
+  .btn:hover { background: #f5ff70; transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: 0.5; cursor: default; transform: none; }
 
-// ── SOCKET EVENTS ─────────────────────────────────────────────────────────────
-io.on("connection", (socket) => {
-  console.log("connect", socket.id);
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-ghost:hover { background: #1a1a1a; }
 
-  socket.on("create_room", ({ name }) => {
-    if (!name) return;
-    const roomId = generateRoomId();
-    rooms[roomId] = {
-      hostId: socket.id,
-      players: [{ id: socket.id, name: name.slice(0, 20), isHost: true, vote: null, connected: true, yesCount: 0 }],
-      spectators: [],
-      questionIndex: 0,
-      questionsAsked: 0,
-      queue: [],
-      randomOrder: false,
-      state: "lobby",
-      results: [],
-      playAgainOptIns: new Set(),
-      nextRoomId: null
-    };
-    socketRoom[socket.id] = roomId;
-    socket.join(roomId);
-    socket.emit("room_created", { roomId });
-    broadcastRoomUpdate(roomId);
-  });
+  .btn-red { background: var(--accent2); color: #fff; }
+  .btn-red:hover { background: #ff6b84; }
 
-  socket.on("join_room", ({ name, roomId }) => {
-    const room = rooms[roomId];
-    if (!room) return socket.emit("error", { message: "Room not found" });
-    if (room.state === "over") return socket.emit("error", { message: "Game is already over" });
-    if (room.players.length >= 20) return socket.emit("error", { message: "Room is full" });
+  .btn-sm {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    padding: 8px 14px;
+    transition: all 0.15s ease;
+  }
+  .btn-sm:hover { color: var(--text); border-color: #444; }
 
-    room.players.push({ id: socket.id, name: name.slice(0, 20), isHost: false, vote: null, connected: true, yesCount: 0 });
-    socketRoom[socket.id] = roomId;
-    socket.join(roomId);
-    broadcastRoomUpdate(roomId);
+  /* Touch active states for vote buttons — give tactile feedback on mobile */
+  @media (hover: none) {
+    .vote-half:active.yes { background: rgba(61,220,132,0.18) !important; border-color: var(--green) !important; }
+    .vote-half:active.no  { background: rgba(255,77,109,0.18) !important; border-color: var(--red) !important; }
+    /* Suppress lingering hover styles that get stuck after tap */
+    .vote-half.yes:hover:not(:active) { background: var(--surface) !important; border-color: var(--border) !important; }
+    .vote-half.no:hover:not(:active)  { background: var(--surface) !important; border-color: var(--border) !important; }
+    .btn:hover:not(:active)      { background: var(--accent) !important; transform: none !important; }
+    .btn-ghost:hover:not(:active){ background: transparent !important; }
+    .btn-sm:hover:not(:active)   { color: var(--muted) !important; border-color: var(--border) !important; }
+  }
 
-    if (room.state === "lobby") {
-      socket.emit("room_joined", { roomId });
-    } else {
-      const lastResult = room.state === "result" && room.results.length > 0
-        ? {
-            yes: room.results[room.results.length - 1].yes,
-            total: room.results[room.results.length - 1].total,
-            isLast: room.questionIndex >= room.queue.length - 1
-          }
-        : null;
-      const jq = room.queue[room.questionIndex];
-      socket.emit("joined_midgame", {
-        roomId,
-        questionIndex: room.questionsAsked || 0,
-        question: `${jq.n}: ${jq.q}`,
-        total: questions.length,
-        state: room.state,
-        lastResult,
-        spectators: getSpectatorsPayload(room)
-      });
-      broadcastVoteCount(roomId);
-      if (room.state === "question" && allVoted(room)) resolveRound(roomId);
-    }
-  });
+  .host-actions { display: flex; gap: 8px; }
+  .host-actions .btn { flex: 1; }
 
-  socket.on("leave_room", ({ roomId }) => {
-    handleLeave(socket, roomId, true);
-  });
+  /* ── LOBBY ── */
+  .room-id-display {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    text-align: center;
+  }
+  .room-id-display .code {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3rem;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+  }
 
-  // Non-host player converts themselves to a spectator (one-way, irreversible)
-  socket.on("become_spectator", ({ roomId }) => {
-    const room = rooms[roomId];
-    if (!room) return;
-    // Don't allow host to spectate
-    const idx = room.players.findIndex(p => p.id === socket.id);
-    if (idx === -1) return; // already a spectator or not found
-    const player = room.players[idx];
-    if (player.isHost) return;
-    // Move from players to spectators
-    room.players.splice(idx, 1);
-    room.spectators = room.spectators || [];
-    room.spectators.push({ id: socket.id, name: player.name, connected: true });
-    // If they had a vote in progress, treat as abstain
-    if (room.state === "question") {
-      broadcastVoteCount(roomId);
-      if (allVoted(room)) resolveRound(roomId);
-    }
-    broadcastRoomUpdate(roomId);
-    // Tell the spectator their new status
-    socket.emit("now_spectating");
-  });
+  /* ── PLAYER LIST ── */
+  .player-list { display: flex; flex-direction: column; gap: 6px; }
 
-  socket.on("start_game", ({ roomId, randomOrder }) => {
-    const room = rooms[roomId];
-    if (!room || room.hostId !== socket.id) return;
-    room.randomOrder = !!randomOrder;
-    room.queue = randomOrder ? shuffle(questions) : [...questions];
-    room.state = "question";
-    room.questionIndex = 0;
-    room.questionsAsked = 0;
-    room.players.forEach(p => { p.vote = null; p.yesCount = 0; });
-    io.to(roomId).emit("game_started");
-    advanceToQuestion(roomId);
-  });
+  .player-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+  }
 
-  socket.on("submit_vote", ({ roomId, vote }) => {
-    const room = rooms[roomId];
-    if (!room || room.state !== "question") return;
-    const player = room.players.find(p => p.id === socket.id);
-    if (!player) return;
-    player.vote = player.vote === vote ? null : vote;
-    broadcastVoteCount(roomId);
-    if (allVoted(room)) resolveRound(roomId);
-  });
+  .player-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .player-dot.online  { background: var(--green); }
+  .player-dot.offline { background: var(--muted); }
 
-  // Host forces current question to end with votes counted as-is
-  socket.on("end_question", ({ roomId }) => {
-    const room = rooms[roomId];
-    if (!room || room.hostId !== socket.id || room.state !== "question") return;
-    room.players.forEach(p => { if (p.connected && p.vote === null) p.vote = "abstain"; });
-    resolveRound(roomId);
-  });
+  .host-badge {
+    margin-left: auto;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--accent2);
+    text-transform: uppercase;
+  }
 
-  socket.on("skip_question", ({ roomId }) => {
-    const room = rooms[roomId];
-    if (!room || room.hostId !== socket.id) return;
-    if (room.state !== "question" && room.state !== "result") return;
-    room.questionIndex++;
-    if (room.questionIndex >= room.queue.length) {
-      room.state = "over";
-      io.to(roomId).emit("game_over", { results: room.results, scores: buildScores(room) });
-    } else {
-      advanceToQuestion(roomId);
-    }
-  });
+  /* ── TOGGLE ── */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
 
-  socket.on("next_round", ({ roomId }) => {
-    const room = rooms[roomId];
-    if (!room || room.hostId !== socket.id || room.state !== "result") return;
-    room.questionIndex++;
-    if (room.questionIndex >= room.queue.length) {
-      room.state = "over";
-      io.to(roomId).emit("game_over", { results: room.results, scores: buildScores(room) });
-    } else {
-      advanceToQuestion(roomId);
-    }
-  });
+  .toggle-switch {
+    position: relative;
+    width: 40px; height: 22px;
+    flex-shrink: 0;
+  }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 22px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle-track::before {
+    content: "";
+    position: absolute;
+    left: 3px; top: 3px;
+    width: 16px; height: 16px;
+    background: var(--muted);
+    border-radius: 50%;
+    transition: transform 0.2s, background 0.2s;
+  }
+  .toggle-switch input:checked + .toggle-track { background: rgba(232,255,71,0.2); }
+  .toggle-switch input:checked + .toggle-track::before { transform: translateX(18px); background: var(--accent); }
 
-  socket.on("end_game", ({ roomId }) => {
-    const room = rooms[roomId];
-    if (!room || room.hostId !== socket.id) return;
-    room.state = "over";
-    io.to(roomId).emit("game_over", { results: room.results, scores: buildScores(room) });
-  });
+  /* ── GAME BANNER ── */
+  .game-banner {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.35em;
+    color: var(--muted);
+    text-transform: uppercase;
+    text-align: center;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .game-banner span { color: var(--accent); }
 
-  // ── PLAY AGAIN ──────────────────────────────────────────────────────────────
-  // First player to opt in becomes host of a new lobby immediately.
-  // Every subsequent opt-in gets redirected straight into that new lobby.
-  socket.on("opt_in_play_again", ({ roomId }) => {
-    const room = rooms[roomId];
-    if (!room || room.state !== "over") return;
-    room.playAgainOptIns.add(socket.id);
+  .question-num {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
 
-    // New room already created by a prior opt-in — join it directly
-    if (room.nextRoomId && rooms[room.nextRoomId]) {
-      const newRoom = rooms[room.nextRoomId];
-      const playerName = room.players.find(p => p.id === socket.id)?.name || "Player";
-      socketRoom[socket.id] = room.nextRoomId;
-      socket.leave(roomId);
-      socket.join(room.nextRoomId);
-      newRoom.players.push({ id: socket.id, name: playerName, isHost: false, vote: null, connected: true, yesCount: 0 });
-      broadcastRoomUpdate(room.nextRoomId);
-      socket.emit("room_joined", { roomId: room.nextRoomId });
-      broadcastOptIns(roomId);
-      return;
-    }
+  .question-text {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(1.8rem, 6vw, 2.8rem);
+    line-height: 1.1;
+    letter-spacing: 0.04em;
+  }
 
-    // First opt-in — create the new lobby, this player is the host
-    const newRoomId = generateRoomId();
-    room.nextRoomId = newRoomId;
-    const launcherName = room.players.find(p => p.id === socket.id)?.name || "Player";
+  /* ── VOTE BUTTONS ── */
+  .vote-area {
+    height: 100px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-top: 4px;
+  }
 
-    rooms[newRoomId] = {
-      hostId: socket.id,
-      players: [{ id: socket.id, name: launcherName, isHost: true, vote: null, connected: true, yesCount: 0 }],
-      spectators: [],
-      questionIndex: 0,
-      questionsAsked: 0,
-      queue: [],
-      randomOrder: false,
-      state: "lobby",
-      results: [],
-      playAgainOptIns: new Set(),
-      nextRoomId: null
-    };
-    socketRoom[socket.id] = newRoomId;
-    socket.leave(roomId);
-    socket.join(newRoomId);
+  .vote-track {
+    width: 100%; height: 100%;
+    display: flex;
+  }
 
-    // Notify remaining end-screen players that a new game is waiting
-    io.to(roomId).emit("play_again_available", { newRoomId, hostName: launcherName });
-    broadcastOptIns(roomId);
+  .vote-half {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    letter-spacing: 0.12em;
+    border: 2px solid var(--border);
+    transition: flex 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                background 0.2s, color 0.2s, border-color 0.2s;
+    user-select: none;
+    overflow: hidden;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
 
-    socket.emit("room_created", { roomId: newRoomId });
-    broadcastRoomUpdate(newRoomId);
-  });
+  .vote-half.yes { background: var(--surface); color: var(--green); border-color: var(--border); }
+  .vote-half.no  { background: var(--surface); color: var(--red);   border-color: var(--border); }
 
-  // Player cancels their play-again opt-in from the waiting panel
-  socket.on("leave_play_again", ({ roomId }) => {
-    const room = rooms[roomId];
-    if (!room) return;
-    room.playAgainOptIns.delete(socket.id);
-    broadcastOptIns(roomId);
-  });
+  .vote-half.yes:hover { background: rgba(61,220,132,0.08);  border-color: var(--green); }
+  .vote-half.no:hover  { background: rgba(255,77,109,0.08);  border-color: var(--red); }
 
-  // Toggle mid-game shuffle — host only
-  socket.on("set_shuffle", ({ roomId, shuffle: doShuffle }) => {
-    const room = rooms[roomId];
-    if (!room || room.hostId !== socket.id) return;
-    room.randomOrder = doShuffle;
-    const current = room.queue[room.questionIndex];
-    const askedNs = new Set(room.results.map(r => parseInt(r.question)));
-    if (current) askedNs.add(current.n);
-    const rest = questions.filter(q => !askedNs.has(q.n));
-    const orderedRest = doShuffle ? shuffle(rest) : rest.sort((a, b) => a.n - b.n);
-    room.queue = current ? [current, ...orderedRest] : orderedRest;
-    room.questionIndex = 0;
-    socket.emit("shuffle_updated", { randomOrder: doShuffle });
-  });
+  .vote-track.voted-yes .vote-half.yes { flex: 2; background: rgba(61,220,132,0.18); border-color: var(--green); }
+  .vote-track.voted-yes .vote-half.no  { flex: 0; }
+  .vote-track.voted-no  .vote-half.no  { flex: 2; background: rgba(255,77,109,0.18); border-color: var(--red); }
+  .vote-track.voted-no  .vote-half.yes { flex: 0; }
 
-  socket.on("disconnect", () => {
-    console.log("disconnect", socket.id);
-    const roomId = socketRoom[socket.id];
-    if (roomId) handleLeave(socket, roomId, false);
-  });
+  .vote-area.locked .vote-half { cursor: default; pointer-events: none; }
+
+  /* ── VOTE COUNT INDICATOR ── */
+  .vote-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+  .vote-pip-row { display: flex; gap: 4px; flex-wrap: wrap; }
+  .vote-pip {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: background 0.2s;
+  }
+  .vote-pip.done { background: var(--accent); }
+
+  /* ── RESULT SECTION ── */
+  .result-block {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none;
+  }
+  .result-block.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .result-bar-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  .result-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    letter-spacing: 0.1em;
+  }
+  .result-label .big {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.4rem;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .bar-track {
+    background: var(--bg);
+    border-radius: 2px;
+    height: 8px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    background: var(--accent);
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  .waiting-text {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-align: center;
+    padding: 10px 0;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .pulsing { animation: pulse 1.5s ease infinite; }
+
+  /* ── FINAL SCREEN ── */
+  .final-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .score-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+  }
+  .score-rank {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    color: var(--muted);
+    width: 28px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .score-rank.gold   { color: #ffd700; }
+  .score-rank.silver { color: #c0c0c0; }
+  .score-rank.bronze { color: #cd7f32; }
+  .score-name { flex: 1; }
+  .score-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.8rem;
+    color: var(--accent);
+  }
+
+  /* ── TABS ── */
+  .tab-bar {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 0.12em;
+    padding: 12px;
+    transition: all 0.15s ease;
+  }
+  .tab-btn:not(:last-child) { border-right: 1px solid var(--border); }
+  .tab-btn.active { background: var(--surface); color: var(--accent); }
+  .tab-btn:hover:not(.active) { background: #1a1a1a; color: var(--text); }
+
+  .tab-panel { display: none; flex-direction: column; gap: 8px; }
+  .tab-panel.active { display: flex; }
+
+  .q-rank-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 12px;
+  }
+  .q-rank-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.2rem;
+    color: var(--muted);
+    width: 24px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .q-rank-text { flex: 1; line-height: 1.4; color: var(--text); }
+  .q-rank-pct {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  /* ── MISC ── */
+  .error-msg {
+    font-size: 12px;
+    color: var(--accent2);
+    letter-spacing: 0.05em;
+    min-height: 16px;
+  }
+  .status-bar {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-align: center;
+  }
+  .game-player-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .game-player-row {
+    display: flex; align-items: center; gap: 8px; font-size: 12px;
+  }
+  .panel-section-label {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+    margin-top: 2px;
+  }
+  .spectator-badge {
+    margin-left: auto;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── HOME ── -->
+<div class="screen active" id="screen-home">
+  <div class="logo">Have<br>You<br><span>Ever</span></div>
+  <div class="tagline">Multiplayer · Real-time · Uncensored</div>
+
+  <div class="card">
+    <div class="card-label">Create a room</div>
+    <input id="host-name" type="text" placeholder="Your name" maxlength="20">
+    <button class="btn" onclick="createRoom()">Create Room</button>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Join a room</div>
+    <input id="join-name" type="text" placeholder="Your name" maxlength="20">
+    <input id="join-code" type="text" placeholder="Room code" maxlength="4" style="text-transform:uppercase">
+    <button class="btn btn-ghost" onclick="joinRoom()">Join Room</button>
+  </div>
+
+  <div class="error-msg" id="home-error"></div>
+  <div class="status-bar" id="conn-status">Connecting…</div>
+</div>
+
+<!-- ── LOBBY ── -->
+<div class="screen" id="screen-lobby">
+  <div class="logo" style="font-size:2.5rem">Lobby</div>
+
+  <div class="room-id-display">
+    <div class="card-label" style="margin-bottom:6px">Room Code</div>
+    <div class="code" id="lobby-code">----</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Players <span id="player-count" style="color:var(--accent)">0</span></div>
+    <div class="player-list" id="player-list"></div>
+  </div>
+
+  <div class="toggle-row" id="order-toggle-row" style="display:none">
+    <span>Shuffle</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="random-toggle">
+      <span class="toggle-track"></span>
+    </label>
+  </div>
+
+  <button class="btn" id="start-btn" onclick="startGame()" style="display:none">Start Game</button>
+  <button class="btn btn-ghost" id="spectate-toggle-btn" onclick="toggleSpectate()" style="display:none">Spectate</button>
+  <div class="waiting-text pulsing" id="wait-msg">Waiting for host to start…</div>
+  <button class="btn-sm" onclick="leaveRoom()" style="align-self:center;margin-top:4px">Leave Room</button>
+  <div class="error-msg" id="lobby-error"></div>
+</div>
+
+<!-- ── GAME ── -->
+<div class="screen" id="screen-game">
+  <div class="game-banner">Have You <span>Ever…</span></div>
+
+  <div class="question-num" id="q-num">Question 1 / 100</div>
+  <div class="question-text" id="q-text">Loading…</div>
+
+  <div class="vote-area" id="vote-area">
+    <div class="vote-track" id="vote-track">
+      <div class="vote-half yes" onclick="vote('yes')">YES</div>
+      <div class="vote-half no"  onclick="vote('no')">NO</div>
+    </div>
+  </div>
+
+  <div class="vote-progress" id="vote-progress">
+    <span id="vote-count-text">0/0 answered</span>
+    <div class="vote-pip-row" id="vote-pips"></div>
+  </div>
+
+  <div class="result-block" id="result-block">
+    <div class="result-bar-wrap">
+      <div class="result-label">
+        <div><div class="big" id="res-pct">0%</div><div>said YES</div></div>
+        <div style="text-align:right">
+          <div id="res-count" style="font-size:1.5rem;font-family:'Bebas Neue',sans-serif;color:var(--text)">0/0</div>
+          <div>players</div>
+        </div>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="bar-fill" style="width:0%"></div></div>
+    </div>
+
+    <div class="host-actions" id="host-next-actions" style="display:none">
+      <button class="btn" id="next-btn" onclick="nextRound()" style="display:none">Next Question</button>
+      <button class="btn btn-red" id="finish-btn" onclick="nextRound()" style="display:none">See Results</button>
+    </div>
+    <div class="waiting-text pulsing" id="next-wait" style="display:none">Waiting for host…</div>
+  </div>
+
+  <div class="game-player-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+      <div class="card-label">Players</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:0.25em;color:var(--accent)" id="game-room-code"></div>
+    </div>
+    <div id="game-player-list"></div>
+    <!-- Spectator section — hidden when no spectators -->
+    <div id="spectator-section" style="display:none">
+      <div class="panel-section-label">Spectators</div>
+      <div id="game-spectator-list" style="display:flex;flex-direction:column;gap:4px;margin-top:6px"></div>
+    </div>
+    <!-- Spectate button — shown only to non-host non-spectators during game -->
+    <button class="btn-sm" id="game-spectate-btn" onclick="becomeSpectator()" style="display:none;margin-top:4px;align-self:flex-start">Spectate</button>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-top:4px;align-items:center;flex-wrap:wrap">
+    <button class="btn-sm" id="end-question-btn" onclick="endQuestion()" style="display:none">End Question</button>
+    <button class="btn-sm" id="skip-btn" onclick="skipQuestion()" style="display:none">Skip</button>
+    <button class="btn-sm" id="end-btn" onclick="endGame()" style="display:none">End Game</button>
+    <button class="btn-sm" onclick="leaveRoom()">Leave Room</button>
+    <div id="midgame-shuffle-row" style="display:none;align-items:center;gap:8px;margin-left:auto">
+      <span style="font-size:11px;color:var(--muted);letter-spacing:0.1em">Shuffle</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="midgame-shuffle-toggle" onchange="toggleMidgameShuffle()">
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- ── FINAL ── -->
+<div class="screen" id="screen-final">
+  <div class="logo" style="font-size:2.5rem">Results</div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-scores-btn" onclick="switchTab('scores')">Scores</button>
+    <button class="tab-btn" id="tab-questions-btn" onclick="switchTab('questions')">Questions</button>
+  </div>
+
+  <div class="tab-panel active" id="tab-scores">
+    <div class="final-list" id="final-list"></div>
+  </div>
+
+  <div class="tab-panel" id="tab-questions">
+    <div class="final-list" id="question-rank-list"></div>
+  </div>
+
+  <!-- Play Again panel — always visible on end screen -->
+  <div class="card" id="play-again-panel">
+    <div class="card-label">Playing Again</div>
+    <!-- Names of people who've opted in appear here -->
+    <div id="play-again-names" class="player-list"></div>
+    <!-- Shown after opting in, while waiting for others -->
+    <div class="waiting-text pulsing" id="play-again-wait-msg" style="display:none">Waiting for others to join…</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="play-again-btn" onclick="optInPlayAgain()" style="flex:1">Play Again</button>
+      <button class="btn btn-ghost" id="leave-play-again-btn" onclick="leavePlayAgain()" style="flex:1;display:none">Leave</button>
+    </div>
+    <button class="btn btn-ghost" onclick="goHome()">Main Menu</button>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────────────────
+const BACKEND = "https://have-you-ever-backend.onrender.com";
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+const socket = io(BACKEND, { transports: ["websocket", "polling"] });
+
+let myName        = "";
+let myRoom        = "";
+let isHost        = false;
+let isSpectator   = false;
+let currentVote   = null;
+let totalPlayers  = 0;
+let gameResults   = [];
+let pendingQuestion = null;  // new_question received while tabbed out
+let pendingResult  = null;   // round_result received while tabbed out
+
+// ── CONNECTION ───────────────────────────────────────────────────────────────
+socket.on("connect", () => {
+  document.getElementById("conn-status").textContent = "Connected ✓";
+  document.getElementById("conn-status").style.color = "#3ddc84";
+  // If we were in a room and got disconnected, try to rejoin
+  if (myRoom && myName) {
+    socket.emit("rejoin_room", { roomId: myRoom, name: myName, wasSpectator: isSpectator });
+  }
+});
+socket.on("connect_error", () => {
+  document.getElementById("conn-status").textContent = "Connection failed — check backend URL";
+  document.getElementById("conn-status").style.color = "var(--accent2)";
+});
+socket.on("disconnect", () => {
+  document.getElementById("conn-status").textContent = "Disconnected";
 });
 
-function buildScores(room) {
-  const questionsAsked = room.results.length;
-  return room.players
-    .map(p => {
-      const pct = questionsAsked > 0
-        ? Math.round(((questionsAsked - p.yesCount) / questionsAsked) * 100)
-        : 100;
-      return { name: p.name, yesCount: p.yesCount, score: pct };
-    })
-    .sort((a, b) => b.score - a.score);
-}
+// ── ROOM EVENTS ──────────────────────────────────────────────────────────────
+socket.on("room_created", ({ roomId }) => {
+  myRoom = roomId;
+  isHost = true;
+  isSpectator = false;
+  showLobby();
+});
 
-function handleLeave(socket, roomId, permanent) {
-  const room = rooms[roomId];
-  if (!room) return;
-  delete socketRoom[socket.id];
+socket.on("room_joined", ({ roomId }) => {
+  myRoom = roomId;
+  isHost = false;
+  isSpectator = false;  // always enter new game as a player
+  showLobby();
+});
 
-  // Check if this socket is a spectator
-  const specIdx = (room.spectators || []).findIndex(s => s.id === socket.id);
-  if (specIdx !== -1) {
-    if (permanent) {
-      room.spectators.splice(specIdx, 1);
-    } else {
-      room.spectators[specIdx].connected = false;
+socket.on("joined_midgame", ({ roomId, questionIndex, question, total, state, lastResult }) => {
+  myRoom = roomId;
+  isHost = false;
+  currentVote = null;
+
+  setQuestion(question, questionIndex, total);
+  resetVoteUI();
+  hideResult();
+  document.getElementById("skip-btn").style.display = "none";
+  document.getElementById("end-btn").style.display = "none";
+  document.getElementById("end-question-btn").style.display = "none";
+  document.getElementById("midgame-shuffle-row").style.display = "none";
+
+  if (state === "result" && lastResult) {
+    document.getElementById("vote-area").style.display = "none";
+    document.getElementById("vote-progress").style.display = "none";
+    showResult(lastResult.yes, lastResult.total, lastResult.isLast, false);
+    lockVoteArea();
+  } else {
+    document.getElementById("vote-area").style.display = "";
+    document.getElementById("vote-progress").style.display = "flex";
+  }
+
+  document.getElementById("game-room-code").textContent = myRoom;
+  showScreen("screen-game");
+});
+
+socket.on("error", ({ message }) => {
+  setError("home-error", message);
+  setError("lobby-error", message);
+});
+
+socket.on("room_update", ({ players, spectators = [] }) => {
+  totalPlayers = players.filter(p => p.connected).length;
+
+  // Lobby player list — show players and spectators together
+  const allLobbyRows = [
+    ...players.map(p => `
+      <div class="player-item">
+        <div class="player-dot ${p.connected ? 'online' : 'offline'}"></div>
+        <span style="${p.connected ? '' : 'opacity:0.45'}">${p.name}</span>
+        ${p.isHost ? '<span class="host-badge">host</span>' : ''}
+        ${!p.isHost ? '' : ''}
+      </div>`),
+    ...spectators.map(s => `
+      <div class="player-item">
+        <div class="player-dot ${s.connected ? 'online' : 'offline'}"></div>
+        <span style="${s.connected ? 'color:var(--muted)' : 'opacity:0.45;color:var(--muted)'}">${s.name}</span>
+        <span class="host-badge" style="color:var(--muted)">spectator</span>
+      </div>`)
+  ];
+  document.getElementById("player-count").textContent = players.length;
+  document.getElementById("player-list").innerHTML = allLobbyRows.join("");
+
+  // Game player list (players only)
+  document.getElementById("game-player-list").innerHTML = players.map(p => `
+    <div class="game-player-row">
+      <div class="player-dot ${p.connected ? 'online' : 'offline'}"></div>
+      <span style="${p.connected ? '' : 'opacity:0.45;text-decoration:line-through'}">${p.name}</span>
+      ${p.isHost ? '<span style="margin-left:6px;font-size:9px;color:var(--accent2);letter-spacing:0.12em">HOST</span>' : ''}
+    </div>
+  `).join("");
+
+  // Spectator section — shown below players when spectators exist
+  const specSection = document.getElementById("spectator-section");
+  specSection.style.display = spectators.length > 0 ? "" : "none";
+  document.getElementById("game-spectator-list").innerHTML = spectators.map(s => `
+    <div class="game-player-row">
+      <div class="player-dot ${s.connected ? 'online' : 'offline'}"></div>
+      <span style="${s.connected ? 'color:var(--muted)' : 'opacity:0.45;color:var(--muted);text-decoration:line-through'}">${s.name}</span>
+    </div>
+  `).join("");
+
+  // Promoted to host mid-game?
+  const me = players.find(p => p.id === socket.id);
+  if (me && me.isHost && !isHost) {
+    isHost = true;
+    const rb = document.getElementById("result-block");
+    if (rb.classList.contains("visible")) {
+      document.getElementById("host-next-actions").style.display = "flex";
+      document.getElementById("next-wait").style.display = "none";
+      document.getElementById("next-btn").style.display = "block";
     }
-    broadcastRoomUpdate(roomId);
-    if (permanent) socket.leave(roomId);
+    document.getElementById("end-question-btn").style.display = "block";
+    document.getElementById("skip-btn").style.display = "block";
+    document.getElementById("end-btn").style.display = "block";
+    document.getElementById("midgame-shuffle-row").style.display = "flex";
+    document.getElementById("game-spectate-btn").style.display = "none";
+  }
+
+  // Show spectate button during game for active non-host players only
+  if (!isHost && !isSpectator) {
+    document.getElementById("game-spectate-btn").style.display = "inline-block";
+  }
+
+  rebuildPips(totalPlayers);
+});
+
+socket.on("game_started", () => {
+  document.getElementById("game-room-code").textContent = myRoom;
+  document.getElementById("midgame-shuffle-row").style.display = isHost ? "flex" : "none";
+  document.getElementById("end-question-btn").style.display = isHost ? "inline-block" : "none";
+  // Spectators skip vote area; show spectate button for regular players
+  if (isSpectator) {
+    document.getElementById("vote-area").style.display = "none";
+    document.getElementById("vote-progress").style.display = "none";
+    document.getElementById("game-spectate-btn").style.display = "none";
+  } else if (!isHost) {
+    document.getElementById("game-spectate-btn").style.display = "inline-block";
+  }
+  if (isHost) {
+    document.getElementById("midgame-shuffle-toggle").checked =
+      document.getElementById("random-toggle").checked;
+  }
+  showScreen("screen-game");
+});
+
+socket.on("new_question", ({ question, index, total }) => {
+  currentVote = null;
+  if (document.hidden) {
+    pendingQuestion = { question, index, total };
     return;
   }
+  applyNewQuestion(question, index, total);
+});
 
-  if (permanent) {
-    socket.leave(roomId);
-    const idx = room.players.findIndex(p => p.id === socket.id);
-    if (idx === -1) return;
-    const wasHost = room.players[idx].isHost;
-    room.players.splice(idx, 1);
-    if (room.players.length === 0 && (room.spectators || []).length === 0) { delete rooms[roomId]; return; }
-    if (room.players.length === 0) { delete rooms[roomId]; return; }
-    if (wasHost) promoteNewHost(room);
-    room.playAgainOptIns.delete(socket.id);
-    if (room.state === "over") broadcastOptIns(roomId);
-    broadcastRoomUpdate(roomId);
-    if (room.state === "question" && allVoted(room)) resolveRound(roomId);
+function applyNewQuestion(question, index, total) {
+  setQuestion(question, index, total);
+  resetVoteUI();
+  hideResult();
+  // Spectators never see the vote buttons
+  document.getElementById("vote-area").style.display = isSpectator ? "none" : "";
+  document.getElementById("vote-progress").style.display = "flex";
+  document.getElementById("end-question-btn").style.display = isHost ? "inline-block" : "none";
+  document.getElementById("skip-btn").style.display = isHost ? "inline-block" : "none";
+  document.getElementById("end-btn").style.display  = isHost ? "inline-block" : "none";
+  document.getElementById("midgame-shuffle-row").style.display = isHost ? "flex" : "none";
+  rebuildPips(totalPlayers);
+  updatePips(0);
+  pendingQuestion = null;
+}
+
+socket.on("vote_count", ({ voted, total }) => {
+  totalPlayers = total;
+  rebuildPips(total);
+  updatePips(voted);
+  document.getElementById("vote-count-text").textContent = `${voted}/${total} answered`;
+});
+
+socket.on("round_result", ({ yes, total, isLast }) => {
+  document.getElementById("end-question-btn").style.display = "none";
+  document.getElementById("skip-btn").style.display = "none";
+  if (document.hidden) {
+    pendingResult = { yes, total, isLast };
+    return;
+  }
+  showResult(yes, total, isLast, isHost);
+});
+
+socket.on("game_over", ({ scores, results }) => {
+  gameResults = results || [];
+  showFinal(scores, results);
+});
+
+// First player opted in — update button text for those still on end screen
+socket.on("play_again_available", () => {
+  const btn = document.getElementById("play-again-btn");
+  if (!btn.disabled) {
+    btn.textContent = "Play Again";  // keep label consistent
+  }
+});
+
+// Server confirms we are now a spectator
+socket.on("now_spectating", () => {
+  isSpectator = true;
+  document.getElementById("vote-area").style.display = "none";
+  document.getElementById("vote-progress").style.display = "none";
+  document.getElementById("game-spectate-btn").style.display = "none";
+  // Update lobby toggle button
+  const tb = document.getElementById("spectate-toggle-btn");
+  if (tb) { tb.textContent = "Join as Player"; tb.style.display = "block"; }
+});
+
+// Server confirms we reverted to player (lobby only)
+socket.on("now_playing", () => {
+  isSpectator = false;
+  const tb = document.getElementById("spectate-toggle-btn");
+  if (tb) { tb.textContent = "Spectate"; tb.style.display = "block"; }
+});
+
+// Opt-in list changed (someone left the waiting panel)
+socket.on("play_again_update", ({ optInNames }) => {
+  renderPlayAgainNames(optInNames);
+});
+
+// Server confirms shuffle mode updated
+socket.on("shuffle_updated", ({ randomOrder }) => {
+  document.getElementById("midgame-shuffle-toggle").checked = randomOrder;
+});
+
+// ── ACTIONS ──────────────────────────────────────────────────────────────────
+function createRoom() {
+  const name = document.getElementById("host-name").value.trim();
+  if (!name) return setError("home-error", "Enter your name");
+  myName = name;
+  isHost = true;
+  socket.emit("create_room", { name });
+}
+
+function joinRoom() {
+  const name = document.getElementById("join-name").value.trim();
+  const code = document.getElementById("join-code").value.trim().toUpperCase();
+  if (!name) return setError("home-error", "Enter your name");
+  if (!code) return setError("home-error", "Enter a room code");
+  myName = name;
+  socket.emit("join_room", { name, roomId: code });
+}
+
+function startGame() {
+  const randomOrder = document.getElementById("random-toggle").checked;
+  socket.emit("start_game", { roomId: myRoom, randomOrder });
+}
+
+function vote(choice) {
+  const area = document.getElementById("vote-area");
+  if (area.classList.contains("locked")) return;
+  if (currentVote === choice) {
+    currentVote = null;
+    document.getElementById("vote-track").className = "vote-track";
+    socket.emit("submit_vote", { roomId: myRoom, vote: choice });
   } else {
-    const player = room.players.find(p => p.id === socket.id);
-    if (!player) return;
-    player.connected = false;
-    if (player.isHost) {
-      player.isHost = false;
-      promoteNewHost(room);
-    }
-    room.playAgainOptIns.delete(socket.id);
-    if (room.state === "over") broadcastOptIns(roomId);
-    broadcastRoomUpdate(roomId);
-    if (room.state === "question" && player.vote === null) {
-      player.vote = "abstain";
-      broadcastVoteCount(roomId);
-      if (allVoted(room)) resolveRound(roomId);
-    }
+    currentVote = choice;
+    document.getElementById("vote-track").className =
+      "vote-track " + (choice === "yes" ? "voted-yes" : "voted-no");
+    socket.emit("submit_vote", { roomId: myRoom, vote: choice });
   }
 }
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server on port ${PORT}`));
+function nextRound() {
+  // Don't hide buttons immediately — result block fades out first via applyNewQuestion
+  // Just disable them to prevent double-click
+  document.getElementById("next-btn").disabled = true;
+  document.getElementById("finish-btn").disabled = true;
+  socket.emit("next_round", { roomId: myRoom });
+}
+
+function endQuestion() {
+  socket.emit("end_question", { roomId: myRoom });
+}
+
+function skipQuestion() {
+  socket.emit("skip_question", { roomId: myRoom });
+}
+
+function toggleMidgameShuffle() {
+  const on = document.getElementById("midgame-shuffle-toggle").checked;
+  socket.emit("set_shuffle", { roomId: myRoom, shuffle: on });
+}
+
+function endGame() {
+  socket.emit("end_game", { roomId: myRoom });
+}
+
+function toggleSpectate() {
+  if (isSpectator) {
+    socket.emit("leave_spectator", { roomId: myRoom });
+  } else {
+    socket.emit("become_spectator", { roomId: myRoom });
+  }
+}
+
+function becomeSpectator() {
+  // Game-screen spectate (one-way, irreversible during game)
+  socket.emit("become_spectator", { roomId: myRoom });
+}
+
+function leaveRoom() {
+  socket.emit("leave_room", { roomId: myRoom });
+  myRoom = "";
+  isHost = false;
+  isSpectator = false;
+  currentVote = null;
+  document.getElementById("host-name").value = myName;
+  document.getElementById("join-name").value = myName;
+  document.getElementById("join-code").value = "";
+  showScreen("screen-home");
+}
+
+function goHome() {
+  myRoom = "";
+  isHost = false;
+  isSpectator = false;
+  currentVote = null;
+  document.getElementById("host-name").value = myName;
+  document.getElementById("join-name").value = myName;
+  document.getElementById("join-code").value = "";
+  showScreen("screen-home");
+}
+
+function optInPlayAgain() {
+  if (!myName || !myRoom) { goHome(); return; }
+  const btn = document.getElementById("play-again-btn");
+  btn.disabled = true;
+  btn.textContent = "Joining…";
+  document.getElementById("leave-play-again-btn").style.display = "";
+  document.getElementById("play-again-wait-msg").style.display = "block";
+  socket.emit("opt_in_play_again", { roomId: myRoom });
+}
+
+function leavePlayAgain() {
+  socket.emit("leave_play_again", { roomId: myRoom });
+  // Reset panel back to initial state
+  const btn = document.getElementById("play-again-btn");
+  btn.disabled = false;
+  btn.textContent = "Play Again";
+  document.getElementById("leave-play-again-btn").style.display = "none";
+  document.getElementById("play-again-wait-msg").style.display = "none";
+  renderPlayAgainNames([]);
+}
+
+// ── UI HELPERS ───────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+function showLobby() {
+  document.getElementById("lobby-code").textContent = myRoom;
+  document.getElementById("start-btn").style.display = isHost ? "block" : "none";
+  document.getElementById("order-toggle-row").style.display = isHost ? "flex" : "none";
+  document.getElementById("wait-msg").style.display = isHost ? "none" : "block";
+  // Spectate toggle: non-host players can toggle spectator status in lobby
+  const tb = document.getElementById("spectate-toggle-btn");
+  if (!isHost) {
+    tb.style.display = "block";
+    tb.textContent = isSpectator ? "Join as Player" : "Spectate";
+  } else {
+    tb.style.display = "none";
+  }
+  showScreen("screen-lobby");
+}
+
+function setQuestion(question, index, total) {
+  document.getElementById("q-num").textContent = `Question ${index + 1} / ${total}`;
+  document.getElementById("q-text").textContent = question;
+}
+
+function resetVoteUI() {
+  document.getElementById("vote-track").className = "vote-track";
+  document.getElementById("vote-area").classList.remove("locked");
+}
+
+function lockVoteArea() {
+  document.getElementById("vote-area").classList.add("locked");
+}
+
+function hideResult() {
+  document.getElementById("result-block").classList.remove("visible");
+  document.getElementById("host-next-actions").style.display = "none";
+  const nb = document.getElementById("next-btn");
+  const fb = document.getElementById("finish-btn");
+  nb.style.display = "none";
+  nb.disabled = false;
+  fb.style.display = "none";
+  fb.disabled = false;
+  document.getElementById("next-wait").style.display = "none";
+}
+
+function showResult(yes, total, isLast, hostControls) {
+  const pct = total > 0 ? Math.round((yes / total) * 100) : 0;
+  document.getElementById("res-pct").textContent = pct + "%";
+  document.getElementById("res-count").textContent = `${yes}/${total}`;
+  requestAnimationFrame(() => {
+    document.getElementById("bar-fill").style.width = pct + "%";
+  });
+
+  if (hostControls) {
+    document.getElementById("host-next-actions").style.display = "flex";
+    document.getElementById(isLast ? "finish-btn" : "next-btn").style.display = "block";
+    document.getElementById("next-wait").style.display = "none";
+  } else {
+    document.getElementById("host-next-actions").style.display = "none";
+    document.getElementById("next-wait").style.display = "block";
+  }
+
+  lockVoteArea();
+  requestAnimationFrame(() => {
+    document.getElementById("result-block").classList.add("visible");
+  });
+}
+
+function rebuildPips(count) {
+  const container = document.getElementById("vote-pips");
+  container.innerHTML = "";
+  for (let i = 0; i < count; i++) {
+    const pip = document.createElement("div");
+    pip.className = "vote-pip";
+    container.appendChild(pip);
+  }
+}
+
+function updatePips(voted) {
+  document.querySelectorAll(".vote-pip").forEach((pip, i) => {
+    pip.classList.toggle("done", i < voted);
+  });
+}
+
+function renderPlayAgainNames(names) {
+  document.getElementById("play-again-names").innerHTML = names.map(n => `
+    <div class="player-item">
+      <div class="player-dot online"></div>
+      <span>${n}</span>
+    </div>
+  `).join("");
+}
+
+function showFinal(scores, results) {
+  switchTab("scores");
+
+  // Reset play-again panel
+  const btn = document.getElementById("play-again-btn");
+  btn.disabled = false;
+  btn.textContent = "Play Again";
+  document.getElementById("leave-play-again-btn").style.display = "none";
+  document.getElementById("play-again-wait-msg").style.display = "none";
+  renderPlayAgainNames([]);
+
+  // Scores tab
+  const rankClass = i => i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
+  document.getElementById("final-list").innerHTML = scores.map((s, i) => `
+    <div class="score-item">
+      <div class="score-rank ${rankClass(i)}">${i + 1}</div>
+      <div class="score-name">${s.name}</div>
+      <div class="score-val">${s.score}%</div>
+    </div>
+  `).join("");
+
+  // Questions tab
+  const qList = document.getElementById("question-rank-list");
+  if (results && results.length > 0) {
+    const sorted = [...results].sort((a, b) => {
+      const pA = a.total > 0 ? a.yes / a.total : 0;
+      const pB = b.total > 0 ? b.yes / b.total : 0;
+      return pB - pA;
+    });
+    qList.innerHTML = sorted.map((r, i) => {
+      const pct = r.total > 0 ? Math.round((r.yes / r.total) * 100) : 0;
+      return `
+        <div class="q-rank-item">
+          <div class="q-rank-num">${i + 1}</div>
+          <div class="q-rank-text">${r.question}</div>
+          <div class="q-rank-pct">${pct}%</div>
+        </div>`;
+    }).join("");
+  } else {
+    qList.innerHTML = '<div class="waiting-text">No questions answered yet.</div>';
+  }
+
+  showScreen("screen-final");
+}
+
+function switchTab(tab) {
+  document.getElementById("tab-scores-btn").classList.toggle("active", tab === "scores");
+  document.getElementById("tab-questions-btn").classList.toggle("active", tab === "questions");
+  document.getElementById("tab-scores").classList.toggle("active", tab === "scores");
+  document.getElementById("tab-questions").classList.toggle("active", tab === "questions");
+}
+
+function setError(id, msg) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = msg; setTimeout(() => el.textContent = "", 3000); }
+}
+
+// ── FONT LOAD + VISIBILITY CHANGE ────────────────────────────────────────────
+document.fonts.ready.then(() => document.body.classList.add("fonts-ready"));
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  // A new question arrived while tabbed out — apply it (takes priority over result)
+  if (pendingQuestion) {
+    const { question, index, total } = pendingQuestion;
+    pendingResult = null;
+    applyNewQuestion(question, index, total);
+  } else if (pendingResult) {
+    // A round result arrived while tabbed out — show it
+    const { yes, total, isLast } = pendingResult;
+    pendingResult = null;
+    document.getElementById("end-question-btn").style.display = "none";
+    document.getElementById("skip-btn").style.display = "none";
+    showResult(yes, total, isLast, isHost);
+  }
+});
+</script>
+</body>
+</html>
