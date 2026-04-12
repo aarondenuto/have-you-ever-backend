@@ -178,14 +178,15 @@ function broadcastVoteCount(roomId) {
 function resolveRound(roomId) {
   const room = rooms[roomId];
   const yes = room.players.filter(p => p.vote === "yes").length;
+  const answeredTotal = room.players.filter(p => p.connected && p.vote !== null && p.vote !== "abstain").length;
   const total = room.players.filter(p => p.connected).length;
   const isLast = room.questionIndex >= room.queue.length - 1;
   const q = room.queue[room.questionIndex];
   room.players.forEach(p => { if (p.vote === "yes") p.yesCount++; });
-  room.results.push({ question: `${q.n}: ${q.q}`, yes, total });
+  room.results.push({ question: `${q.n}: ${q.q}`, yes, total: answeredTotal });
   room.questionsAsked = (room.questionsAsked || 0) + 1;
   room.state = "result";
-  io.to(roomId).emit("round_result", { yes, total, isLast });
+  io.to(roomId).emit("round_result", { yes, total: answeredTotal, isLast });
 }
 
 function advanceToQuestion(roomId) {
