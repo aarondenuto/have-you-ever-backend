@@ -500,6 +500,29 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Client requests current game state (e.g. after tab-back on desktop)
+  socket.on("request_state", ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room || room.state === "lobby" || room.state === "over") return;
+    const jq = room.queue[room.questionIndex];
+    if (!jq) return;
+    if (room.state === "question") {
+      socket.emit("new_question", {
+        question: `${jq.n}: ${jq.q}`,
+        index: room.questionsAsked || 0,
+        total: questions.length
+      });
+      // Also send current vote counts
+      const connected = room.players.filter(p => p.connected);
+      const answeredIds = connected.filter(p => p.vote !== null).map(p => p.id);
+      socket.emit("vote_count", { voted: answeredIds.length, total: connected.length, answeredIds });
+    } else if (room.state === "result" && room.results.length > 0) {
+      const last = room.results[room.results.length - 1];
+      const isLast = room.questionIndex >= room.queue.length - 1;
+      socket.emit("round_result", { yes: last.yes, total: last.total, isLast });
+    }
+  });
+
   // Toggle mid-game shuffle — host only
   socket.on("set_shuffle", ({ roomId, shuffle: doShuffle }) => {
     const room = rooms[roomId];
