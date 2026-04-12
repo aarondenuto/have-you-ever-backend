@@ -171,7 +171,8 @@ function broadcastVoteCount(roomId) {
   const room = rooms[roomId];
   if (!room) return;
   const connected = room.players.filter(p => p.connected);
-  io.to(roomId).emit("vote_count", { voted: votedCount(room), total: connected.length });
+  const answeredIds = connected.filter(p => p.vote !== null).map(p => p.id);
+  io.to(roomId).emit("vote_count", { voted: votedCount(room), total: connected.length, answeredIds });
 }
 
 function resolveRound(roomId) {
