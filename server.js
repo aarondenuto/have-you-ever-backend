@@ -527,7 +527,7 @@ function buildScores(room) {
       const pct = questionsAsked > 0
         ? Math.round(((questionsAsked - p.yesCount) / questionsAsked) * 100)
         : 100;
-      return { name: p.name, yesCount: p.yesCount, score: pct };
+      return { name: p.name, yesCount: p.yesCount, questionsAsked, score: pct };
     })
     .sort((a, b) => b.score - a.score);
 }
